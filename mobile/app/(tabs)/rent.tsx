@@ -1,53 +1,91 @@
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/context/ThemeContext";
-import { Card } from "@/components/ui/Card";
-import { StatCard } from "@/components/ui/StatCard";
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Button } from "@/components/ui/Button";
+import { AppCard, LoadingSpinner, PrimaryButton, ScreenHeader, StatCard, StatusBadge } from "@/components";
+import { useRentPayments } from "@/hooks/useMockData";
+import { RentPayment } from "@/types";
 
-const MOCK_PAYMENTS = [
-  { id: 1, amount: 450, due_date: "2026-06-15", status: "pending" as const },
-  { id: 2, amount: 450, due_date: "2026-06-08", status: "paid" as const, payment_date: "2026-06-07" },
-  { id: 3, amount: 450, due_date: "2026-06-01", status: "paid" as const, payment_date: "2026-05-31" },
-  { id: 4, amount: 450, due_date: "2026-05-25", status: "overdue" as const },
-];
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString("en-NZ", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
-export default function RentScreen() {
+export default function RentTrackerScreen() {
   const { colors } = useTheme();
+  const { data: payments, isLoading } = useRentPayments();
+
+  const pending =
+    payments?.filter((p: RentPayment) => p.status === "pending" || p.status === "overdue") ?? [];
+  const outstanding = pending.reduce((sum: number, p: RentPayment) => sum + p.amount, 0);
+  const nextDue = [...pending].sort((a: RentPayment, b: RentPayment) =>
+    a.due_date.localeCompare(b.due_date),
+  )[0];
+
+  if (isLoading) {
+    return (
+      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+        <LoadingSpinner fullScreen message="Loading rent data..." />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
       <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false}>
-        <Text className="text-2xl font-bold pt-4 pb-6" style={{ color: colors.text }}>Rent Tracker</Text>
+        <ScreenHeader title="Rent Tracker" subtitle="Weekly rent payments in NZD" />
 
         <View className="flex-row flex-wrap gap-3 mb-6">
-          <StatCard title="Next Due" value="$450" icon="calendar" color="#3B82F6" subtitle="Jun 15, 2026" />
-          <StatCard title="Outstanding" value="$450" icon="alert-circle" color="#EF4444" />
+          <StatCard
+            title="Next Due"
+            value={nextDue ? `$${nextDue.amount}` : "$0"}
+            icon="calendar"
+            color="#3B82F6"
+            subtitle={nextDue ? formatDate(nextDue.due_date) : "All caught up"}
+          />
+          <StatCard
+            title="Outstanding"
+            value={`$${outstanding}`}
+            icon="alert-circle"
+            color={outstanding > 0 ? "#F87171" : "#34D399"}
+            subtitle={outstanding > 0 ? `${pending.length} payment(s)` : "No arrears"}
+          />
         </View>
 
-        <Button title="Upload Payment Receipt" onPress={() => {}} className="mb-6" />
+        <PrimaryButton title="Record Payment" onPress={() => {}} className="mb-8" />
 
-        <Text className="text-lg font-semibold mb-4" style={{ color: colors.text }}>Payment History</Text>
+        <Text className="text-lg font-bold mb-4" style={{ color: colors.text }}>
+          Payment History
+        </Text>
 
-        {MOCK_PAYMENTS.map((payment) => (
-          <Card key={payment.id} className="mb-3 flex-row items-center justify-between">
-            <View>
-              <Text className="text-base font-semibold" style={{ color: colors.text }}>
-                ${payment.amount}
-              </Text>
-              <Text className="text-sm mt-0.5" style={{ color: colors.textSecondary }}>
-                Due: {payment.due_date}
-              </Text>
-              {payment.payment_date && (
-                <Text className="text-xs mt-0.5" style={{ color: colors.success }}>
-                  Paid: {payment.payment_date}
+        {payments?.map((payment: RentPayment) => (
+          <AppCard key={payment.id} className="mb-3">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1">
+                <Text className="text-lg font-bold" style={{ color: colors.text }}>
+                  ${payment.amount}
+                  <Text className="text-sm font-normal" style={{ color: colors.textSecondary }}>
+                    {" "}
+                    NZD
+                  </Text>
                 </Text>
-              )}
+                <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
+                  Due: {formatDate(payment.due_date)}
+                </Text>
+                {payment.payment_date && (
+                  <Text className="text-xs mt-1" style={{ color: colors.success }}>
+                    Paid: {formatDate(payment.payment_date)}
+                  </Text>
+                )}
+              </View>
+              <StatusBadge status={payment.status} />
             </View>
-            <StatusBadge status={payment.status} />
-          </Card>
+          </AppCard>
         ))}
+
+        <View className="h-8" />
       </ScrollView>
     </SafeAreaView>
   );

@@ -1,5 +1,6 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { Platform } from "react-native";
 import { useTheme } from "@/context/ThemeContext";
 
 export default function TabsLayout() {
@@ -14,52 +15,59 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.tabBar,
           borderTopColor: colors.border,
-          paddingBottom: 4,
-          height: 60,
+          borderTopWidth: 1,
+          paddingBottom: Platform.OS === "ios" ? 20 : 8,
+          paddingTop: 8,
+          height: Platform.OS === "ios" ? 88 : 68,
+          elevation: 0,
+          shadowOpacity: 0,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600", marginTop: 2 },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: "Dashboard",
-          tabBarIcon: ({ color, size }) => <Ionicons name="grid" size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "grid" : "grid-outline"} size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="properties"
         options={{
           title: "Properties",
-          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "home" : "home-outline"} size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="rent"
         options={{
           title: "Rent",
-          tabBarIcon: ({ color, size }) => <Ionicons name="wallet" size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "wallet" : "wallet-outline"} size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="maintenance"
         options={{
           title: "Maintenance",
-          tabBarIcon: ({ color, size }) => <Ionicons name="construct" size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "construct" : "construct-outline"} size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="messages"
+        name="profile"
         options={{
-          title: "Messages",
-          tabBarIcon: ({ color, size }) => <Ionicons name="chatbubbles" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="more"
-        options={{
-          title: "More",
-          tabBarIcon: ({ color, size }) => <Ionicons name="menu" size={size} color={color} />,
+          title: "Profile",
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "person" : "person-outline"} size={size} color={color} />
+          ),
         }}
       />
     </Tabs>

@@ -17,19 +17,5 @@ services:
       timeout: 5s
       retries: 5
 
-  backend:
-    build: ./backend
-    container_name: homehub_backend
-    restart: always
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://homehub:homehub123@db:5432/homehub_db
-    env_file:
-      - .env
-    ports:
-      - "8000:8000"
-
 volumes:
   postgres_data:

@@ -5,8 +5,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.core.database import AsyncSessionLocal, Base, check_database_connection, engine
 from app.core.seed import seed_roles
+from app.database import AsyncSessionLocal, Base, check_database_connection, engine
 from app.models import (  # noqa: F401 — register models with metadata
     Lease,
     MaintenanceRequest,
@@ -22,17 +22,22 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+    db_ok = await check_database_connection()
+    if db_ok:
+        print("Database Connected Successfully", flush=True)
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
 
-        async with AsyncSessionLocal() as session:
-            await seed_roles(session)
-            await session.commit()
+            async with AsyncSessionLocal() as session:
+                await seed_roles(session)
+                await session.commit()
 
-        logger.info("Database tables ready and roles seeded")
-    except Exception as exc:
-        logger.warning("Database startup skipped (is PostgreSQL running?): %s", exc)
+            logger.info("Database tables ready and roles seeded")
+        except Exception as exc:
+            logger.warning("Database startup skipped: %s", exc)
+    else:
+        print("Database Connection Failed", flush=True)
 
     yield
 
@@ -55,6 +60,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/")
+async def root():
+    return {"message": "HomeHub NZ API Running Successfully"}
 
 
 @app.get("/health")

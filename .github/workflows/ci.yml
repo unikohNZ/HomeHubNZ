@@ -36,8 +36,8 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: homehub
-          POSTGRES_PASSWORD: homehub
-          POSTGRES_DB: homehub
+          POSTGRES_PASSWORD: homehub123
+          POSTGRES_DB: homehub_db
         ports:
           - 5432:5432
         options: >-
@@ -53,7 +53,7 @@ jobs:
       - run: pip install -r requirements.txt
       - run: pytest tests/ -v
         env:
-          DATABASE_URL: postgresql+asyncpg://homehub:homehub@localhost:5432/homehub
+          DATABASE_URL: postgresql://homehub:homehub123@localhost:5432/homehub_db
           SECRET_KEY: test-secret-key
 
   mobile-lint:
@@ -107,4 +107,4 @@ jobs:
             git pull origin main
             docker compose pull
             docker compose up -d --build
-            docker compose exec -T api alembic upgrade head
+            docker compose exec -T backend alembic upgrade head

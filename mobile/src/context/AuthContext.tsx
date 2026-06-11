@@ -1,63 +1,73 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import * as SecureStore from "expo-secure-store";
-import { authApi } from "@/services/api";
-import { User } from "@/types";
+import { MOCK_USER } from "@/data/mockData";
+import { User, UserRole } from "@/types";
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (data: Record<string, string>) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
+}
+
+interface RegisterData {
+  first_name: string;
+  last_name: string;
+  email: string;
+  password: string;
+  phone?: string;
+  role?: UserRole;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const USER_KEY = "mock_user";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const refreshUser = useCallback(async () => {
-    try {
-      const { data } = await authApi.me();
-      setUser(data);
-    } catch {
-      setUser(null);
-    }
-  }, []);
-
   useEffect(() => {
     (async () => {
-      const token = await SecureStore.getItemAsync("access_token");
-      if (token) {
-        await refreshUser();
+      const stored = await SecureStore.getItemAsync(USER_KEY);
+      if (stored) {
+        setUser(JSON.parse(stored) as User);
       }
       setIsLoading(false);
     })();
-  }, [refreshUser]);
+  }, []);
 
-  const login = async (email: string, password: string) => {
-    const { data } = await authApi.login(email, password);
-    await SecureStore.setItemAsync("access_token", data.access_token);
-    await SecureStore.setItemAsync("refresh_token", data.refresh_token);
-    await refreshUser();
+  const persistUser = useCallback(async (nextUser: User) => {
+    await SecureStore.setItemAsync(USER_KEY, JSON.stringify(nextUser));
+    setUser(nextUser);
+  }, []);
+
+  const login = async (email: string, _password: string) => {
+    await new Promise((r) => setTimeout(r, 800));
+    const mockUser: User = {
+      ...MOCK_USER,
+      email,
+    };
+    await persistUser(mockUser);
   };
 
-  const register = async (formData: Record<string, string>) => {
-    await authApi.register(formData);
-    await login(formData.email, formData.password);
+  const register = async (data: RegisterData) => {
+    await new Promise((r) => setTimeout(r, 800));
+    const mockUser: User = {
+      ...MOCK_USER,
+      email: data.email,
+      first_name: data.first_name,
+      last_name: data.last_name,
+      phone: data.phone,
+      role: data.role || "tenant",
+    };
+    await persistUser(mockUser);
   };
 
   const logout = async () => {
-    try {
-      await authApi.logout();
-    } catch {
-      // ignore
-    }
-    await SecureStore.deleteItemAsync("access_token");
-    await SecureStore.deleteItemAsync("refresh_token");
+    await SecureStore.deleteItemAsync(USER_KEY);
     setUser(null);
   };
 
@@ -70,7 +80,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         logout,
-        refreshUser,
       }}
     >
       {children}

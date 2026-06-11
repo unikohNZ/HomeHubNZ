@@ -1,18 +1,25 @@
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { Link, router } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { AppInput, PrimaryButton } from "@/components";
+import { UserRole } from "@/types";
+
+const ROLES: { value: UserRole; label: string }[] = [
+  { value: "tenant", label: "Tenant" },
+  { value: "landlord", label: "Landlord" },
+  { value: "flatmate", label: "Flatmate" },
+  { value: "contractor", label: "Contractor" },
+];
 
 const schema = z.object({
   first_name: z.string().min(1, "First name is required"),
   last_name: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   phone: z.string().optional(),
   role: z.enum(["tenant", "landlord", "flatmate", "contractor"]),
@@ -25,7 +32,11 @@ export default function RegisterScreen() {
   const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
 
-  const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { role: "tenant" },
   });
@@ -33,10 +44,8 @@ export default function RegisterScreen() {
   const onSubmit = async (data: FormData) => {
     setLoading(true);
     try {
-      await register(data as Record<string, string>);
+      await register(data);
       router.replace("/(tabs)");
-    } catch {
-      Alert.alert("Registration Failed", "Could not create account. Email may already be in use.");
     } finally {
       setLoading(false);
     }
@@ -48,12 +57,16 @@ export default function RegisterScreen() {
       style={{ backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerClassName="px-6 py-12">
-        <Text className="text-2xl font-bold mb-2" style={{ color: colors.text }}>
+      <ScrollView
+        contentContainerClassName="px-6 py-12"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Text className="text-2xl font-bold tracking-tight" style={{ color: colors.text }}>
           Create Account
         </Text>
-        <Text className="text-base mb-8" style={{ color: colors.textSecondary }}>
-          Join HomeHub NZ today
+        <Text className="text-base mb-8 mt-2" style={{ color: colors.textSecondary }}>
+          Join HomeHub NZ — manage properties across Aotearoa
         </Text>
 
         <View className="flex-row gap-3">
@@ -62,7 +75,13 @@ export default function RegisterScreen() {
               control={control}
               name="first_name"
               render={({ field: { onChange, onBlur, value } }) => (
-                <Input label="First Name" value={value} onChangeText={onChange} onBlur={onBlur} error={errors.first_name?.message} />
+                <AppInput
+                  label="First Name"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  error={errors.first_name?.message}
+                />
               )}
             />
           </View>
@@ -71,7 +90,13 @@ export default function RegisterScreen() {
               control={control}
               name="last_name"
               render={({ field: { onChange, onBlur, value } }) => (
-                <Input label="Last Name" value={value} onChangeText={onChange} onBlur={onBlur} error={errors.last_name?.message} />
+                <AppInput
+                  label="Last Name"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  error={errors.last_name?.message}
+                />
               )}
             />
           </View>
@@ -81,7 +106,16 @@ export default function RegisterScreen() {
           control={control}
           name="email"
           render={({ field: { onChange, onBlur, value } }) => (
-            <Input label="Email" keyboardType="email-address" autoCapitalize="none" value={value} onChangeText={onChange} onBlur={onBlur} error={errors.email?.message} />
+            <AppInput
+              label="Email"
+              placeholder="you@example.co.nz"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              error={errors.email?.message}
+            />
           )}
         />
 
@@ -89,7 +123,15 @@ export default function RegisterScreen() {
           control={control}
           name="password"
           render={({ field: { onChange, onBlur, value } }) => (
-            <Input label="Password" secureTextEntry value={value} onChangeText={onChange} onBlur={onBlur} error={errors.password?.message} />
+            <AppInput
+              label="Password"
+              secureTextEntry
+              hint="Minimum 8 characters"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              error={errors.password?.message}
+            />
           )}
         />
 
@@ -97,16 +139,56 @@ export default function RegisterScreen() {
           control={control}
           name="phone"
           render={({ field: { onChange, onBlur, value } }) => (
-            <Input label="Phone (optional)" keyboardType="phone-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
+            <AppInput
+              label="Phone (optional)"
+              placeholder="+64 21 000 0000"
+              keyboardType="phone-pad"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+            />
           )}
         />
 
-        <Button title="Create Account" onPress={handleSubmit(onSubmit)} loading={loading} className="mt-4" />
+        <Text className="text-sm font-medium mb-2" style={{ color: colors.text }}>
+          I am a...
+        </Text>
+        <Controller
+          control={control}
+          name="role"
+          render={({ field: { onChange, value } }) => (
+            <View className="flex-row flex-wrap gap-2 mb-4">
+              {ROLES.map((role) => (
+                <Pressable
+                  key={role.value}
+                  onPress={() => onChange(role.value)}
+                  className="px-4 py-2.5 rounded-xl"
+                  style={{
+                    backgroundColor: value === role.value ? colors.primary : colors.surface,
+                    borderColor: value === role.value ? colors.primary : colors.border,
+                    borderWidth: 1,
+                  }}
+                >
+                  <Text
+                    className="text-sm font-semibold"
+                    style={{ color: value === role.value ? "#FFFFFF" : colors.text }}
+                  >
+                    {role.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        />
 
-        <View className="flex-row justify-center mt-6">
+        <PrimaryButton title="Create Account" onPress={handleSubmit(onSubmit)} loading={loading} className="mt-2" />
+
+        <View className="flex-row justify-center mt-8 mb-6">
           <Text style={{ color: colors.textSecondary }}>Already have an account? </Text>
           <Link href="/(auth)/login" asChild>
-            <Text className="font-semibold" style={{ color: colors.primary }}>Sign In</Text>
+            <Text className="font-semibold" style={{ color: colors.primary }}>
+              Sign In
+            </Text>
           </Link>
         </View>
       </ScrollView>

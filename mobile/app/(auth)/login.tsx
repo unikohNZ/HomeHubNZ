@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { Link, router } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,11 +7,10 @@ import { z } from "zod";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { AppInput, PrimaryButton } from "@/components";
 
 const schema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
@@ -22,8 +21,13 @@ export default function LoginScreen() {
   const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
 
-  const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormData>({
     resolver: zodResolver(schema),
+    defaultValues: { email: "sarah.mitchell@example.co.nz", password: "password123" },
   });
 
   const onSubmit = async (data: FormData) => {
@@ -31,8 +35,6 @@ export default function LoginScreen() {
     try {
       await login(data.email, data.password);
       router.replace("/(tabs)");
-    } catch {
-      Alert.alert("Login Failed", "Invalid email or password. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -44,19 +46,22 @@ export default function LoginScreen() {
       style={{ backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerClassName="flex-grow justify-center px-6 py-12">
+      <ScrollView
+        contentContainerClassName="flex-grow justify-center px-6 py-12"
+        keyboardShouldPersistTaps="handled"
+      >
         <View className="items-center mb-10">
           <View
-            className="w-20 h-20 rounded-3xl items-center justify-center mb-4"
+            className="w-20 h-20 rounded-3xl items-center justify-center mb-5"
             style={{ backgroundColor: colors.primary }}
           >
             <Ionicons name="home" size={40} color="#FFFFFF" />
           </View>
-          <Text className="text-3xl font-bold" style={{ color: colors.text }}>
+          <Text className="text-3xl font-bold tracking-tight" style={{ color: colors.text }}>
             HomeHub NZ
           </Text>
-          <Text className="text-base mt-2" style={{ color: colors.textSecondary }}>
-            Smart Property Management
+          <Text className="text-base mt-2 text-center" style={{ color: colors.textSecondary }}>
+            Smart property management for New Zealand
           </Text>
         </View>
 
@@ -64,11 +69,12 @@ export default function LoginScreen() {
           control={control}
           name="email"
           render={({ field: { onChange, onBlur, value } }) => (
-            <Input
+            <AppInput
               label="Email"
-              placeholder="you@example.com"
+              placeholder="you@example.co.nz"
               keyboardType="email-address"
               autoCapitalize="none"
+              autoComplete="email"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
@@ -81,10 +87,11 @@ export default function LoginScreen() {
           control={control}
           name="password"
           render={({ field: { onChange, onBlur, value } }) => (
-            <Input
+            <AppInput
               label="Password"
               placeholder="Enter your password"
               secureTextEntry
+              autoComplete="password"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
@@ -93,15 +100,13 @@ export default function LoginScreen() {
           )}
         />
 
-        <Link href="/(auth)/forgot-password" asChild>
-          <Text className="text-sm text-right mb-6" style={{ color: colors.primary }}>
-            Forgot password?
-          </Text>
-        </Link>
+        <PrimaryButton title="Sign In" onPress={handleSubmit(onSubmit)} loading={loading} className="mt-2" />
 
-        <Button title="Sign In" onPress={handleSubmit(onSubmit)} loading={loading} />
+        <Text className="text-xs text-center mt-4" style={{ color: colors.textSecondary }}>
+          Demo mode — any valid email and password will work
+        </Text>
 
-        <View className="flex-row justify-center mt-6">
+        <View className="flex-row justify-center mt-8">
           <Text style={{ color: colors.textSecondary }}>Don't have an account? </Text>
           <Link href="/(auth)/register" asChild>
             <Text className="font-semibold" style={{ color: colors.primary }}>
