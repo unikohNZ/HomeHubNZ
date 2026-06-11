@@ -1,13 +1,16 @@
 {
-  "name": "homehub-nz",
-  "version": "0.1.0",
-  "main": "expo-router/entry",
-  "private": true,
-  "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "lint": "eslint . --ext .ts,.tsx",
-    "typecheck": "tsc --noEmit"
+  "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
+    "@tanstack/react-query": "^5.101.0",
+    "axios": "^1.17.0",
+    "expo": "^56.0.11",
+    "react": "^19.2.7",
+    "react-hook-form": "^7.78.0",
+    "react-native": "^0.86.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.14",
+    "typescript": "~6.0.3"
   }
 }
