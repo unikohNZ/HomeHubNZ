@@ -1,65 +1,68 @@
+import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
-from sqlalchemy import select
 
-from app.api.v1 import api_router
 from app.core.config import get_settings
-from app.core.database import AsyncSessionLocal, engine
-from app.core.database import Base
-from app.models.enums import UserRole
-from app.models.role import Role
-from app.websocket.chat import router as ws_router
+from app.core.database import AsyncSessionLocal, Base, check_database_connection, engine
+from app.core.seed import seed_roles
+from app.models import (  # noqa: F401 — register models with metadata
+    Lease,
+    MaintenanceRequest,
+    Property,
+    RentPayment,
+    Role,
+    User,
+)
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
-limiter = Limiter(key_func=get_remote_address, default_limits=[f"{settings.RATE_LIMIT_PER_MINUTE}/minute"])
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
 
-    async with AsyncSessionLocal() as db:
-        for role_name in UserRole:
-            result = await db.execute(select(Role).where(Role.name == role_name.value))
-            if not result.scalar_one_or_none():
-                db.add(Role(name=role_name.value, description=f"{role_name.value.replace('_', ' ').title()} role"))
-        await db.commit()
+        async with AsyncSessionLocal() as session:
+            await seed_roles(session)
+            await session.commit()
+
+        logger.info("Database tables ready and roles seeded")
+    except Exception as exc:
+        logger.warning("Database startup skipped (is PostgreSQL running?): %s", exc)
 
     yield
+
     await engine.dispose()
 
 
 app = FastAPI(
     title=settings.APP_NAME,
     description="Smart Property Management Platform for New Zealand",
-    version="1.0.0",
+    version="0.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
 )
 
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=["*"] if settings.DEBUG else [],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(api_router, prefix=settings.API_V1_PREFIX)
-app.include_router(ws_router)
-
 
 @app.get("/health")
-@limiter.limit("30/minute")
-async def health_check(request: Request):
-    return {"status": "healthy", "app": settings.APP_NAME, "version": "1.0.0"}
+async def health_check():
+    db_ok = await check_database_connection()
+    return {
+        "status": "healthy" if db_ok else "degraded",
+        "app": settings.APP_NAME,
+        "version": "0.1.0",
+        "database": "connected" if db_ok else "unavailable",
+    }

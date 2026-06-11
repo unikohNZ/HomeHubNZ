@@ -30,20 +30,6 @@ class RentStatus(str, enum.Enum):
     OVERDUE = "overdue"
 
 
-class BillType(str, enum.Enum):
-    POWER = "power"
-    WATER = "water"
-    INTERNET = "internet"
-    GAS = "gas"
-    OTHER = "other"
-
-
-class BillStatus(str, enum.Enum):
-    UNPAID = "unpaid"
-    PARTIAL = "partial"
-    PAID = "paid"
-
-
 class MaintenanceStatus(str, enum.Enum):
     SUBMITTED = "submitted"
     REVIEWING = "reviewing"
@@ -57,43 +43,3 @@ class MaintenancePriority(str, enum.Enum):
     MEDIUM = "medium"
     HIGH = "high"
     URGENT = "urgent"
-
-
-class InspectionStatus(str, enum.Enum):
-    SCHEDULED = "scheduled"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
-
-
-class ChatRoomType(str, enum.Enum):
-    DIRECT = "direct"
-    GROUP = "group"
-    PROPERTY = "property"
-    MAINTENANCE = "maintenance"
-
-
-class NotificationType(str, enum.Enum):
-    RENT_DUE = "rent_due"
-    RENT_OVERDUE = "rent_overdue"
-    MAINTENANCE = "maintenance"
-    MESSAGE = "message"
-    INSPECTION = "inspection"
-    ANNOUNCEMENT = "announcement"
-    LEASE_EXPIRY = "lease_expiry"
-    BILL_DUE = "bill_due"
-    TASK_REMINDER = "task_reminder"
-
-
-class TaskStatus(str, enum.Enum):
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-
-
-class DocumentType(str, enum.Enum):
-    LEASE = "lease"
-    INSPECTION = "inspection"
-    RECEIPT = "receipt"
-    MAINTENANCE = "maintenance"
-    PROPERTY = "property"
-    OTHER = "other"

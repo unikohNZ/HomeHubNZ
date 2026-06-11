@@ -13,6 +13,8 @@ if TYPE_CHECKING:
 
 
 class Lease(Base, TimestampMixin):
+    """Lease agreement — required parent table for rent payments."""
+
     __tablename__ = "leases"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -20,8 +22,7 @@ class Lease(Base, TimestampMixin):
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     terms: Mapped[Optional[str]] = mapped_column(Text)
-    is_active: Mapped[bool] = mapped_column(default=True)
-    document_url: Mapped[Optional[str]] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
 
     property: Mapped["Property"] = relationship("Property", back_populates="leases")
     rent_payments: Mapped[List["RentPayment"]] = relationship("RentPayment", back_populates="lease")

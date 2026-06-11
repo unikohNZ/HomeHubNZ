@@ -1,46 +1,36 @@
 from functools import lru_cache
-from typing import List
 
+from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def to_async_database_url(url: str) -> str:
+    """Convert a standard PostgreSQL URL to the asyncpg driver form."""
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return url
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     APP_NAME: str = "HomeHub NZ"
     APP_ENV: str = "development"
     DEBUG: bool = True
-    SECRET_KEY: str = "change-me"
     API_V1_PREFIX: str = "/api/v1"
 
-    DATABASE_URL: str = "postgresql+asyncpg://homehub:homehub@localhost:5432/homehub"
+    DATABASE_URL: str = "postgresql://homehub:homehub123@localhost:5432/homehub_db"
 
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    ALGORITHM: str = "HS256"
+    SECRET_KEY: str = "change-me-in-production"
 
-    AWS_ACCESS_KEY_ID: str = ""
-    AWS_SECRET_ACCESS_KEY: str = ""
-    AWS_REGION: str = "ap-southeast-2"
-    S3_BUCKET_NAME: str = "homehub-nz-uploads"
-
-    SMTP_HOST: str = "smtp.gmail.com"
-    SMTP_PORT: int = 587
-    SMTP_USER: str = ""
-    SMTP_PASSWORD: str = ""
-    EMAIL_FROM: str = "noreply@homehub.nz"
-
-    REDIS_URL: str = "redis://localhost:6379/0"
-    WEBHOOK_SECRET: str = "change-me"
-
-    OPENAI_API_KEY: str = ""
-    AI_PROVIDER: str = "openai"
-
-    EXPO_ACCESS_TOKEN: str = ""
-    FCM_SERVER_KEY: str = ""
-
-    CORS_ORIGINS: List[str] = ["http://localhost:8081", "http://localhost:19006"]
-    RATE_LIMIT_PER_MINUTE: int = 60
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def async_database_url(self) -> str:
+        return to_async_database_url(self.DATABASE_URL)
 
 
 @lru_cache
