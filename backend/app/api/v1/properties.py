@@ -1,0 +1,94 @@
+from typing import List
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import get_current_user
+from app.core.database import get_db
+from app.core.permissions import Permission, require_permissions
+from app.models.user import User
+from app.schemas.common import MessageResponse
+from app.schemas.property import (
+    AssignFlatmateRequest,
+    AssignTenantRequest,
+    PropertyCreate,
+    PropertyResponse,
+    PropertyUpdate,
+)
+from app.services.property_service import PropertyService
+
+router = APIRouter()
+
+
+@router.get("", response_model=List[PropertyResponse])
+async def list_properties(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
+    current_user: User = Depends(require_permissions(Permission.PROPERTY_READ)),
+    db: AsyncSession = Depends(get_db),
+):
+    service = PropertyService(db)
+    return await service.get_all(current_user, skip, limit)
+
+
+@router.post("", response_model=PropertyResponse, status_code=201)
+async def create_property(
+    data: PropertyCreate,
+    current_user: User = Depends(require_permissions(Permission.PROPERTY_CREATE)),
+    db: AsyncSession = Depends(get_db),
+):
+    service = PropertyService(db)
+    return await service.create(data, current_user)
+
+
+@router.get("/{property_id}", response_model=PropertyResponse)
+async def get_property(
+    property_id: int,
+    current_user: User = Depends(require_permissions(Permission.PROPERTY_READ)),
+    db: AsyncSession = Depends(get_db),
+):
+    service = PropertyService(db)
+    return await service.get_by_id(property_id)
+
+
+@router.put("/{property_id}", response_model=PropertyResponse)
+async def update_property(
+    property_id: int,
+    data: PropertyUpdate,
+    current_user: User = Depends(require_permissions(Permission.PROPERTY_UPDATE)),
+    db: AsyncSession = Depends(get_db),
+):
+    service = PropertyService(db)
+    return await service.update(property_id, data, current_user)
+
+
+@router.delete("/{property_id}", response_model=MessageResponse)
+async def delete_property(
+    property_id: int,
+    current_user: User = Depends(require_permissions(Permission.PROPERTY_DELETE)),
+    db: AsyncSession = Depends(get_db),
+):
+    service = PropertyService(db)
+    await service.delete(property_id, current_user)
+    return MessageResponse(message="Property deleted")
+
+
+@router.post("/{property_id}/tenants", response_model=dict)
+async def assign_tenant(
+    property_id: int,
+    data: AssignTenantRequest,
+    current_user: User = Depends(require_permissions(Permission.TENANT_ASSIGN)),
+    db: AsyncSession = Depends(get_db),
+):
+    service = PropertyService(db)
+    return await service.assign_tenant(property_id, data)
+
+
+@router.post("/{property_id}/flatmates", response_model=MessageResponse)
+async def assign_flatmate(
+    property_id: int,
+    data: AssignFlatmateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return MessageResponse(message="Flatmate invitation sent")

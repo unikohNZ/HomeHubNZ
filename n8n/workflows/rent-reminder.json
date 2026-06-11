@@ -1,0 +1,42 @@
+{
+  "name": "HomeHub - Rent Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 8 * * *" }]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Daily 8AM NZST",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.HOMEHUB_API_URL }}/webhooks/rent-reminder",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Webhook-Secret", "value": "={{ $env.WEBHOOK_SECRET }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "id": "http-request",
+      "name": "Trigger Rent Reminder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300]
+    }
+  ],
+  "connections": {
+    "Daily 8AM NZST": {
+      "main": [[{ "node": "Trigger Rent Reminder", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "timezone": "Pacific/Auckland" },
+  "tags": [{ "name": "homehub" }, { "name": "rent" }]
+}

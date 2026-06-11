@@ -1,0 +1,61 @@
+{
+  "name": "HomeHub - Maintenance Notifications",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "maintenance-update",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-trigger",
+      "name": "Maintenance Status Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "maintenance-update"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.HOMEHUB_API_URL }}/webhooks/maintenance-notify",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Webhook-Secret", "value": "={{ $env.WEBHOOK_SECRET }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "maintenance_id", "value": "={{ $json.body.maintenance_id }}" }
+          ]
+        }
+      },
+      "id": "notify-api",
+      "name": "Send Notifications",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true } }}"
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [750, 300]
+    }
+  ],
+  "connections": {
+    "Maintenance Status Webhook": {
+      "main": [[{ "node": "Send Notifications", "type": "main", "index": 0 }]]
+    },
+    "Send Notifications": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "tags": [{ "name": "homehub" }, { "name": "maintenance" }]
+}

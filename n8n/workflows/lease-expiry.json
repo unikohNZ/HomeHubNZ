@@ -1,0 +1,41 @@
+{
+  "name": "HomeHub - Lease Expiry Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 9 * * *" }]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Daily 9AM NZST",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.HOMEHUB_API_URL }}/webhooks/lease-expiry",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Webhook-Secret", "value": "={{ $env.WEBHOOK_SECRET }}" }
+          ]
+        }
+      },
+      "id": "http-request",
+      "name": "Send Lease Expiry Alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300]
+    }
+  ],
+  "connections": {
+    "Daily 9AM NZST": {
+      "main": [[{ "node": "Send Lease Expiry Alerts", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "timezone": "Pacific/Auckland" },
+  "tags": [{ "name": "homehub" }, { "name": "lease" }]
+}
