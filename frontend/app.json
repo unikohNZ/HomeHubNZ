@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "HomeHub NZ",
+    "slug": "homehub-nz",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "homehub",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#060d1f",
+    "web": {
+      "bundler": "metro"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "nz.homehub.app"
+    },
+    "android": {
+      "package": "nz.homehub.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#060d1f"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
