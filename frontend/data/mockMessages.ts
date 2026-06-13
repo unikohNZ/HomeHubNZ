@@ -1,0 +1,155 @@
+import { JoinRequest } from "../types/request";
+import { Conversation, ChatMessage } from "../types/message";
+
+export const INITIAL_JOIN_REQUESTS: JoinRequest[] = [
+  {
+    id: "jr1",
+    property_id: "2",
+    flatmate_name: "James Patel",
+    flatmate_email: "james@example.co.nz",
+    message: "Hi, I'm a tidy tenant looking for a room near work.",
+    status: "pending",
+    created_at: "2 hours ago",
+  },
+];
+
+export const MOCK_CONVERSATIONS: Conversation[] = [
+  {
+    id: "c1",
+    name: "Aroha Ngata",
+    role: "Landlord",
+    category: "landlord",
+    avatar_color: "#22c55e",
+    property_name: "Mount Maunganui Apartment",
+    last_message: "Rent is due this Friday — let me know if you have questions.",
+    last_time: "1h ago",
+    unread_count: 2,
+    online: true,
+  },
+  {
+    id: "c2",
+    name: "Sarah Lee",
+    role: "Flatmate",
+    category: "flatmate",
+    avatar_color: "#3b82f6",
+    property_name: "Mount Maunganui Apartment",
+    last_message: "Are you free to help clean the kitchen this weekend?",
+    last_time: "3h ago",
+    unread_count: 1,
+    online: true,
+  },
+  {
+    id: "c3",
+    name: "Bay Heating Ltd",
+    role: "Contractor",
+    category: "contractor",
+    avatar_color: "#f59e0b",
+    last_message: "Heater service booked for Tuesday 10am.",
+    last_time: "Yesterday",
+    unread_count: 0,
+    online: false,
+  },
+  {
+    id: "c4",
+    name: "James Patel",
+    role: "Flatmate",
+    category: "flatmate",
+    avatar_color: "#a855f7",
+    property_name: "Papamoa Beach House",
+    last_message: "Is the spare room still available?",
+    last_time: "2 days ago",
+    unread_count: 0,
+    online: false,
+  },
+];
+
+export const MOCK_CHAT_MESSAGES: Record<string, ChatMessage[]> = {
+  c1: [
+    {
+      id: "m1",
+      conversation_id: "c1",
+      sender_name: "Aroha Ngata",
+      content: "Kia ora! Hope you're settling in well at the Mount flat.",
+      created_at: "2026-06-12T09:00:00Z",
+      is_mine: false,
+    },
+    {
+      id: "m2",
+      conversation_id: "c1",
+      sender_name: "You",
+      content: "Thanks Aroha! Everything is great so far.",
+      created_at: "2026-06-12T09:20:00Z",
+      is_mine: true,
+    },
+    {
+      id: "m3",
+      conversation_id: "c1",
+      sender_name: "Aroha Ngata",
+      content: "Rent is due this Friday — let me know if you have questions.",
+      created_at: "2026-06-12T10:05:00Z",
+      is_mine: false,
+    },
+  ],
+  c2: [
+    {
+      id: "m4",
+      conversation_id: "c2",
+      sender_name: "Sarah Lee",
+      content: "Hey! Welcome to the flat 👋",
+      created_at: "2026-06-11T14:00:00Z",
+      is_mine: false,
+    },
+    {
+      id: "m5",
+      conversation_id: "c2",
+      sender_name: "You",
+      content: "Thanks Sarah! Happy to be here.",
+      created_at: "2026-06-11T14:30:00Z",
+      is_mine: true,
+    },
+    {
+      id: "m6",
+      conversation_id: "c2",
+      sender_name: "Sarah Lee",
+      content: "Are you free to help clean the kitchen this weekend?",
+      created_at: "2026-06-12T08:00:00Z",
+      is_mine: false,
+    },
+  ],
+  c3: [
+    {
+      id: "m7",
+      conversation_id: "c3",
+      sender_name: "Bay Heating Ltd",
+      content: "Hi, we're confirming your heater service appointment.",
+      created_at: "2026-06-11T10:00:00Z",
+      is_mine: false,
+    },
+    {
+      id: "m8",
+      conversation_id: "c3",
+      sender_name: "You",
+      content: "Tuesday works perfectly, thanks.",
+      created_at: "2026-06-11T10:15:00Z",
+      is_mine: true,
+    },
+    {
+      id: "m9",
+      conversation_id: "c3",
+      sender_name: "Bay Heating Ltd",
+      content: "Heater service booked for Tuesday 10am.",
+      created_at: "2026-06-11T10:20:00Z",
+      is_mine: false,
+    },
+  ],
+  c4: [
+    {
+      id: "m10",
+      conversation_id: "c4",
+      sender_name: "James Patel",
+      content: "Is the spare room still available?",
+      created_at: "2026-06-10T14:00:00Z",
+      is_mine: false,
+    },
+  ],
+};
