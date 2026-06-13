@@ -1,10 +1,17 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { NotificationBell } from "../components/NotificationBell";
+import { useState } from "react";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { ScreenShell } from "../components/ScreenShell";
 import { UserAvatar } from "../components/UserAvatar";
+import { Badge } from "../components/ui/Badge";
+import { SectionHeader } from "../components/ui/SectionHeader";
 import { useTheme } from "../context/ThemeContext";
 import { FLATMATE_USER, LANDLORD_USER } from "../data/mockUsers";
-import { DemoRole } from "../types";
+import { DemoRole, SubScreen } from "../types";
+import { radius, spacing, touchTarget } from "../constants/design";
+
+const SIGN_OUT_BG = "#7F1D1D";
+const SIGN_OUT_BORDER = "#EF4444";
+const TAB_BAR_CLEARANCE = 120;
 
 interface ProfileScreenProps {
   role: DemoRole;
@@ -15,7 +22,8 @@ interface ProfileScreenProps {
   isDark: boolean;
   onToggleTheme: () => void;
   onSwitchRole: (role: DemoRole) => void;
-  onNotifications: () => void;
+  onNavigate: (screen: SubScreen) => void;
+  onSignOut: () => void;
 }
 
 export function ProfileScreen({
@@ -27,114 +35,163 @@ export function ProfileScreen({
   isDark,
   onToggleTheme,
   onSwitchRole,
-  onNotifications,
+  onNavigate,
+  onSignOut,
 }: ProfileScreenProps) {
   const { theme } = useTheme();
   const user = role === "landlord" ? LANDLORD_USER : FLATMATE_USER;
+  const [showSignOutModal, setShowSignOutModal] = useState(false);
+
+  const menuItems: { icon: string; label: string; screen: SubScreen; badge?: number }[] = [
+    { icon: "🔔", label: "Notifications", screen: "notifications", badge: unreadNotifications },
+    { icon: "📄", label: "Documents", screen: "documents" },
+    { icon: "🆘", label: "Emergency Contacts", screen: "emergency-hub" },
+    { icon: "📋", label: "House Rules", screen: "house-rules" },
+    { icon: "🔒", label: "Privacy", screen: "agreement" },
+  ];
+
+  const confirmSignOut = () => {
+    setShowSignOutModal(false);
+    onSignOut();
+  };
 
   return (
-    <ScreenShell
-      title="Profile"
-      subtitle="Account & preferences"
-      headerRight={
-        role === "flatmate" ? (
-          <NotificationBell count={unreadNotifications} onPress={onNotifications} />
-        ) : undefined
-      }
-    >
-      <View style={[styles.profile, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <UserAvatar name={user.name} color={user.avatar_color} size={72} />
-        <View style={styles.profileInfo}>
-          <Text style={[styles.name, { color: theme.text }]}>{user.name}</Text>
-          <Text style={[styles.email, { color: theme.textMuted }]}>{user.email}</Text>
-          <View style={[styles.verified, { backgroundColor: theme.successMuted }]}>
-            <Text style={[styles.verifiedText, { color: theme.success }]}>
-              {user.verified ? "✓ Verified" : "Unverified"}
-            </Text>
+    <>
+      <ScreenShell
+        title="Profile"
+        subtitle="Account & preferences"
+        bottomPadding={TAB_BAR_CLEARANCE}
+      >
+        <View style={[styles.profile, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <UserAvatar name={user.name} color={user.avatar_color} size={72} />
+          <View style={styles.profileInfo}>
+            <Text style={[styles.name, { color: theme.text }]}>{user.name}</Text>
+            <Text style={[styles.email, { color: theme.textSecondary }]}>{user.email}</Text>
+            {user.verified && (
+              <Badge label="✓ Verified" tone="success" style={{ marginTop: spacing.sm }} />
+            )}
           </View>
         </View>
-      </View>
 
-      <View style={styles.stats}>
-        <StatBox label="Properties" value={String(propertyCount)} />
-        <StatBox label="Payments" value={String(paymentCount)} />
-        <StatBox label="Requests" value={String(requestCount)} />
-      </View>
-
-      <Text style={[styles.section, { color: theme.text }]}>Settings</Text>
-
-      <Pressable
-        style={[styles.row, { backgroundColor: theme.card, borderColor: theme.border }]}
-        onPress={onToggleTheme}
-      >
-        <Text style={[styles.rowLabel, { color: theme.text }]}>
-          {isDark ? "🌙 Dark Mode" : "☀️ Light Mode"}
-        </Text>
-        <Text style={[styles.rowValue, { color: theme.primary }]}>
-          {isDark ? "On" : "Off"}
-        </Text>
-      </Pressable>
-
-      <View style={[styles.row, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <Text style={[styles.rowLabel, { color: theme.text }]}>📍 Location</Text>
-        <Text style={[styles.rowValue, { color: theme.textMuted }]}>{user.location}</Text>
-      </View>
-
-      <View style={[styles.roleSection, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <Text style={[styles.roleTitle, { color: theme.text }]}>
-          Switch Demo Role
-        </Text>
-        <Text style={[styles.roleSub, { color: theme.textMuted }]}>
-          For testing flatmate vs landlord experience
-        </Text>
-        <View style={styles.roleRow}>
-          <Pressable
-            style={[
-              styles.roleBtn,
-              {
-                backgroundColor:
-                  role === "flatmate" ? theme.primary : theme.primaryMuted,
-                borderColor: theme.primary,
-              },
-            ]}
-            onPress={() => onSwitchRole("flatmate")}
-          >
-            <Text
-              style={[
-                styles.roleBtnText,
-                { color: role === "flatmate" ? "#fff" : theme.primary },
-              ]}
-            >
-              Flatmate
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[
-              styles.roleBtn,
-              {
-                backgroundColor:
-                  role === "landlord" ? theme.primary : theme.primaryMuted,
-                borderColor: theme.primary,
-              },
-            ]}
-            onPress={() => onSwitchRole("landlord")}
-          >
-            <Text
-              style={[
-                styles.roleBtnText,
-                { color: role === "landlord" ? "#fff" : theme.primary },
-              ]}
-            >
-              Landlord
-            </Text>
-          </Pressable>
+        <View style={styles.stats}>
+          <StatBox label="Properties" value={String(propertyCount)} />
+          <StatBox label="Payments" value={String(paymentCount)} />
+          <StatBox label="Requests" value={String(requestCount)} />
         </View>
-      </View>
 
-      <Text style={[styles.footer, { color: theme.textMuted }]}>
-        HomeHub NZ v1.0 · Expo SDK 56
-      </Text>
-    </ScreenShell>
+        <SectionHeader title="Settings" />
+        {menuItems.map((item) => (
+          <Pressable
+            key={item.screen}
+            style={[styles.row, { backgroundColor: theme.card, borderColor: theme.border }]}
+            onPress={() => onNavigate(item.screen)}
+          >
+            <Text style={[styles.rowLabel, { color: theme.text }]}>
+              {item.icon} {item.label}
+            </Text>
+            {item.badge !== undefined && item.badge > 0 ? (
+              <Badge label={String(item.badge)} tone="danger" />
+            ) : (
+              <Text style={[styles.chevron, { color: theme.textMuted }]}>›</Text>
+            )}
+          </Pressable>
+        ))}
+
+        <Pressable
+          style={[styles.row, { backgroundColor: theme.card, borderColor: theme.border }]}
+          onPress={onToggleTheme}
+        >
+          <Text style={[styles.rowLabel, { color: theme.text }]}>
+            {isDark ? "🌙 Dark Mode" : "☀️ Light Mode"}
+          </Text>
+          <Text style={[styles.rowValue, { color: theme.primary }]}>{isDark ? "On" : "Off"}</Text>
+        </Pressable>
+
+        <SectionHeader title="Switch Role" />
+        <View style={[styles.roleSection, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.roleSub, { color: theme.textSecondary }]}>
+            Preview flatmate or landlord experience
+          </Text>
+          <View style={styles.roleRow}>
+            <Pressable
+              style={[
+                styles.roleBtn,
+                {
+                  backgroundColor: role === "flatmate" ? theme.primary : theme.primaryMuted,
+                  borderColor: theme.primary,
+                },
+              ]}
+              onPress={() => onSwitchRole("flatmate")}
+            >
+              <Text style={[styles.roleBtnText, { color: role === "flatmate" ? "#fff" : theme.primary }]}>
+                Flatmate
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.roleBtn,
+                {
+                  backgroundColor: role === "landlord" ? theme.primary : theme.primaryMuted,
+                  borderColor: theme.primary,
+                },
+              ]}
+              onPress={() => onSwitchRole("landlord")}
+            >
+              <Text style={[styles.roleBtnText, { color: role === "landlord" ? "#fff" : theme.primary }]}>
+                Landlord
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <Text style={[styles.footer, { color: theme.textMuted }]}>
+          HomeHub NZ v2.0 · Expo SDK 56 · Made in Aotearoa
+        </Text>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.signOutBtn,
+            pressed && styles.signOutPressed,
+          ]}
+          onPress={() => setShowSignOutModal(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Sign out"
+        >
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </Pressable>
+      </ScreenShell>
+
+      <Modal
+        visible={showSignOutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSignOutModal(false)}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowSignOutModal(false)}
+            accessibilityLabel="Dismiss sign out dialog"
+          />
+          <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              Are you sure you want to sign out?
+            </Text>
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalCancel, { backgroundColor: theme.cardElevated, borderColor: theme.border }]}
+                onPress={() => setShowSignOutModal(false)}
+              >
+                <Text style={[styles.modalCancelText, { color: theme.text }]}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.modalSignOut} onPress={confirmSignOut}>
+                <Text style={styles.modalSignOutText}>Sign Out</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -152,61 +209,93 @@ const styles = StyleSheet.create({
   profile: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
-    borderRadius: 24,
+    gap: spacing.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    padding: 20,
-    marginBottom: 16,
+    padding: spacing.xl,
+    marginBottom: spacing.lg,
   },
   profileInfo: { flex: 1 },
-  name: { fontSize: 20, fontWeight: "800" },
+  name: { fontSize: 22, fontWeight: "800" },
   email: { fontSize: 14, marginTop: 4 },
-  verified: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    marginTop: 8,
-  },
-  verifiedText: { fontSize: 12, fontWeight: "700" },
-  stats: { flexDirection: "row", gap: 10, marginBottom: 16 },
-  stat: {
-    flex: 1,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 14,
-    alignItems: "center",
-  },
+  stats: { flexDirection: "row", gap: spacing.md, marginBottom: spacing.lg },
+  stat: { flex: 1, borderRadius: radius.lg, borderWidth: 1, padding: spacing.lg, alignItems: "center" },
   statValue: { fontSize: 20, fontWeight: "800" },
   statLabel: { fontSize: 11, marginTop: 2, fontWeight: "600" },
-  section: { fontSize: 17, fontWeight: "700", marginBottom: 12 },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    padding: 16,
-    marginBottom: 10,
+    padding: spacing.lg,
+    marginBottom: spacing.sm,
+    minHeight: touchTarget,
   },
   rowLabel: { fontSize: 15, fontWeight: "600" },
   rowValue: { fontSize: 14, fontWeight: "600" },
-  roleSection: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 10,
-  },
-  roleTitle: { fontSize: 15, fontWeight: "700" },
-  roleSub: { fontSize: 13, marginTop: 4, marginBottom: 12 },
-  roleRow: { flexDirection: "row", gap: 10 },
-  roleBtn: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
+  chevron: { fontSize: 20, fontWeight: "300" },
+  roleSection: { borderRadius: radius.xl, borderWidth: 1, padding: spacing.lg, marginBottom: spacing.md },
+  roleSub: { fontSize: 13, marginBottom: spacing.md },
+  roleRow: { flexDirection: "row", gap: spacing.md },
+  roleBtn: { flex: 1, borderRadius: radius.md, borderWidth: 1, paddingVertical: 14, alignItems: "center" },
   roleBtnText: { fontSize: 14, fontWeight: "700" },
-  footer: { textAlign: "center", fontSize: 12, marginTop: 24 },
+  footer: { textAlign: "center", fontSize: 12, marginTop: spacing.lg, marginBottom: spacing.xl },
+  signOutBtn: {
+    width: "100%",
+    backgroundColor: SIGN_OUT_BG,
+    borderWidth: 1,
+    borderColor: SIGN_OUT_BORDER,
+    borderRadius: radius.lg,
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: touchTarget,
+    marginTop: spacing.sm,
+  },
+  signOutPressed: { opacity: 0.9 },
+  signOutText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: spacing.xl,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 340,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    padding: spacing.xl,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: spacing.xl,
+  },
+  modalActions: { flexDirection: "row", gap: spacing.md },
+  modalCancel: {
+    flex: 1,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    paddingVertical: 14,
+    alignItems: "center",
+    minHeight: touchTarget,
+    justifyContent: "center",
+  },
+  modalCancelText: { fontSize: 15, fontWeight: "700" },
+  modalSignOut: {
+    flex: 1,
+    backgroundColor: SIGN_OUT_BG,
+    borderWidth: 1,
+    borderColor: SIGN_OUT_BORDER,
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    alignItems: "center",
+    minHeight: touchTarget,
+    justifyContent: "center",
+  },
+  modalSignOutText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
 });

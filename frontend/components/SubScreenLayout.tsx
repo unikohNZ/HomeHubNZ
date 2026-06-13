@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../context/ThemeContext";
+import { radius, spacing, typography } from "../constants/design";
 
 interface SubScreenLayoutProps {
   title: string;
@@ -8,6 +9,8 @@ interface SubScreenLayoutProps {
   onBack: () => void;
   children: ReactNode;
   headerRight?: ReactNode;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }
 
 export function SubScreenLayout({
@@ -16,13 +19,15 @@ export function SubScreenLayout({
   onBack,
   children,
   headerRight,
+  refreshing,
+  onRefresh,
 }: SubScreenLayoutProps) {
   const { theme } = useTheme();
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
-      <View style={styles.header}>
-        <Pressable onPress={onBack} style={styles.back}>
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+        <Pressable onPress={onBack} style={styles.back} hitSlop={12}>
           <Text style={[styles.backText, { color: theme.primary }]}>← Back</Text>
         </Pressable>
         {headerRight}
@@ -31,10 +36,20 @@ export function SubScreenLayout({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={!!refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.primary}
+              colors={[theme.primary]}
+            />
+          ) : undefined
+        }
       >
         <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
         {subtitle && (
-          <Text style={[styles.subtitle, { color: theme.textMuted }]}>{subtitle}</Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
         )}
         {children}
       </ScrollView>
@@ -48,13 +63,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 4,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
   },
-  back: { paddingVertical: 8 },
-  backText: { fontSize: 15, fontWeight: "600" },
-  content: { padding: 20, paddingBottom: 32 },
-  title: { fontSize: 26, fontWeight: "800", marginBottom: 4 },
-  subtitle: { fontSize: 14, marginBottom: 16 },
+  back: { paddingVertical: spacing.sm, minHeight: 44, justifyContent: "center" },
+  backText: { fontSize: 15, fontWeight: "700" },
+  content: { padding: spacing.xl, paddingBottom: spacing.xxxl },
+  title: { ...typography.title, color: "#fff" },
+  subtitle: { fontSize: 14, marginBottom: spacing.lg, lineHeight: 20 },
 });

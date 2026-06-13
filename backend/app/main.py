@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.core.seed import seed_roles
 from app.database import AsyncSessionLocal, Base, check_database_connection, engine
+from app.api.v1 import api_router
 from app.models import (  # noqa: F401 — register models with metadata
     Lease,
     MaintenanceRequest,
@@ -60,6 +61,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/")

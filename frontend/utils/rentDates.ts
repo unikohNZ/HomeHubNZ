@@ -87,8 +87,12 @@ export function getRentStatus(
     return { status: "due_today", label: "Due Today", daysInfo: "Due today" };
   }
 
-  if (daysLate === 1) {
-    return { status: "pending", label: "Pending", daysInfo: "1 day late" };
+  if (daysLate === 1 || daysLate === 2) {
+    return {
+      status: "pending",
+      label: "Pending",
+      daysInfo: `${daysLate} day${daysLate === 1 ? "" : "s"} late`,
+    };
   }
 
   return {

@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Platform, Pressable, StyleSheet, View, ViewStyle } from "react-native";
 import { useTheme } from "../context/ThemeContext";
+import { radius } from "../constants/design";
 
 interface CardProps {
   children: ReactNode;
@@ -43,7 +44,7 @@ export function Card({ children, elevated, onPress, style }: CardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
+    borderRadius: radius.xl,
     borderWidth: 1,
     padding: 18,
     marginBottom: 14,

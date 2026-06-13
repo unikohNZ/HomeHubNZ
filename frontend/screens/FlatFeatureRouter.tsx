@@ -1,3 +1,5 @@
+import { AlertsScreen } from "./AlertsScreen";
+import { EmergencyHubScreen } from "./EmergencyHubScreen";
 import { AIAssistantScreen } from "./AIAssistantScreen";
 import { AgreementScreen } from "./AgreementScreen";
 import { AnnouncementsScreen } from "./AnnouncementsScreen";
@@ -119,6 +121,8 @@ export interface FlatFeatureActions {
   onAcceptAgreement: () => void;
   onMarkAnnouncementRead: (id: string) => void;
   onPinAnnouncement: (id: string) => void;
+  onAlertAction: () => void;
+  onEmergencyCall: (name: string, phone: string) => void;
 }
 
 interface FlatFeatureRouterProps {
@@ -144,6 +148,20 @@ export function FlatFeatureRouter({
           onBack={actions.onBack}
           onMarkRead={actions.onMarkNotificationRead}
           onMarkAllRead={actions.onMarkAllNotificationsRead}
+        />
+      );
+    case "alerts":
+      return (
+        <AlertsScreen
+          onBack={actions.onBack}
+          onAction={() => actions.onAlertAction()}
+        />
+      );
+    case "emergency-hub":
+      return (
+        <EmergencyHubScreen
+          onBack={actions.onBack}
+          onCall={actions.onEmergencyCall}
         />
       );
     case "flatmates":

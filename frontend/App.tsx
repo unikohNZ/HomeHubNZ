@@ -4,9 +4,9 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { BottomNavigation } from "./components/BottomNavigation";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
-import { DEFAULT_RULES } from "./data/constants";
+import { CURRENT_EMERGENCY_STATUS } from "./data/mockAlerts";
 import { DEMO_APPROVED_JOIN } from "./data/demoJoin";
-import { EMPTY_PROPERTY_FORM, nextId } from "./data/formDefaults";
+import { EMPTY_PROPERTY_FORM } from "./data/formDefaults";
 import {
   MOCK_AI_QUESTIONS,
   MOCK_CALENDAR_EVENTS,
@@ -37,9 +37,10 @@ import {
   MOCK_VISITORS,
 } from "./data/mockFlatExtended";
 import { INITIAL_JOIN_REQUESTS, MOCK_CHAT_MESSAGES, MOCK_CONVERSATIONS } from "./data/mockMessages";
-import { MOCK_PROPERTIES } from "./data/mockProperties";
 import { MOCK_RENT_PAYMENTS } from "./data/mockRent";
 import { FLATMATE_USER } from "./data/mockUsers";
+import { usePropertiesData } from "./hooks/usePropertiesData";
+import { tokenStorage } from "./src/services/tokenStorage";
 import { ChatScreen } from "./screens/ChatScreen";
 import { DashboardScreen } from "./screens/DashboardScreen";
 import { FlatFeatureRouter } from "./screens/FlatFeatureRouter";
@@ -48,7 +49,8 @@ import { MyFlatScreen } from "./screens/MyFlatScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { PropertiesScreen } from "./screens/PropertiesScreen";
 import { RentScreen } from "./screens/RentScreen";
-import { RequestsScreen } from "./screens/RequestsScreen";
+import { MaintenanceScreen } from "./screens/MaintenanceScreen";
+import { TenantsScreen } from "./screens/TenantsScreen";
 import { DemoRole, OverlayScreen, SubScreen, TabId } from "./types";
 import { CalendarEvent, FeedPost, HouseRule, RuleCategory } from "./types/flat";
 import { AvailabilityStatus } from "./types/flatExtended";
@@ -57,6 +59,7 @@ import { Property, PropertyFormData } from "./types/property";
 import { JoinRequest } from "./types/request";
 import { RentPayment } from "./types/rent";
 import { buildRentSections, getNextRentDate } from "./utils/rentHelpers";
+import { nextId } from "./data/formDefaults";
 
 const PHONE_MAX = 430;
 const CURRENT_USER_ID = "fm1";
@@ -80,7 +83,18 @@ function HomeHubApp() {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const [properties, setProperties] = useState<Property[]>(MOCK_PROPERTIES);
+  const {
+    properties,
+    setProperties,
+    loading: propertiesLoading,
+    saving: propertiesSaving,
+    error: propertiesError,
+    source: propertiesSource,
+    reload: reloadProperties,
+    createProperty,
+    updateProperty,
+    deleteProperty: removeProperty,
+  } = usePropertiesData();
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([
     DEMO_APPROVED_JOIN,
     ...INITIAL_JOIN_REQUESTS,
@@ -118,6 +132,33 @@ function HomeHubApp() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<PropertyFormData>(EMPTY_PROPERTY_FORM);
   const [leftFlat, setLeftFlat] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await reloadProperties();
+    setRefreshing(false);
+  };
+
+  const alertLevel =
+    CURRENT_EMERGENCY_STATUS === "emergency"
+      ? "emergency"
+      : CURRENT_EMERGENCY_STATUS === "watch"
+        ? "watch"
+        : "normal";
+  const alertTitle =
+    alertLevel === "normal"
+      ? "No active alerts"
+      : alertLevel === "watch"
+        ? "Weather warning in Bay of Plenty"
+        : "Earthquake alert — check Civil Defence";
+
+  const occupancyRate = useMemo(() => {
+    if (!properties.length) return 0;
+    const total = properties.reduce((s, p) => s + p.max_flatmates, 0);
+    const filled = properties.reduce((s, p) => s + p.flatmate_count, 0);
+    return total ? Math.round((filled / total) * 100) : 0;
+  }, [properties]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -204,58 +245,79 @@ function HomeHubApp() {
     setShowPropertyForm(true);
   };
 
-  const saveProperty = () => {
+  const saveProperty = async () => {
     if (!form.name.trim() || !form.address.trim() || !form.weekly_rent) {
       showToast("Name, address and rent are required");
       return;
     }
-    const rules = form.rules.split(",").map((r) => r.trim()).filter(Boolean);
-    const payload: Property = {
-      id: editingId ?? nextId(),
-      name: form.name.trim(),
-      address: form.address.trim(),
-      suburb: form.suburb.trim() || "Tauranga",
-      city: form.city.trim() || "Tauranga",
-      property_type: form.property_type,
-      bedrooms: parseInt(form.bedrooms, 10) || 1,
-      bathrooms: parseInt(form.bathrooms, 10) || 1,
-      weekly_rent: parseFloat(form.weekly_rent) || 0,
-      bond: parseFloat(form.bond) || parseFloat(form.weekly_rent) * 4 || 0,
-      available_rooms: parseInt(form.available_rooms, 10) || 1,
-      max_flatmates: parseInt(form.max_flatmates, 10) || 2,
-      flatmate_count: 0,
-      description: form.description.trim() || "New Zealand rental property.",
-      rules: rules.length ? rules : DEFAULT_RULES,
-      image_url:
-        "https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=800&q=80",
-    };
     if (editingId) {
-      setProperties((prev) =>
-        prev.map((p) =>
-          p.id === editingId ? { ...payload, flatmate_count: p.flatmate_count } : p,
-        ),
+      const existing = properties.find((p) => p.id === editingId);
+      if (!existing) {
+        showToast("Property not found");
+        return;
+      }
+      const result = await updateProperty(editingId, form);
+      showToast(
+        result.error
+          ? "Saved locally (API unavailable)"
+          : result.source === "api"
+            ? "Property updated via API"
+            : "Property updated",
       );
-      showToast("Property updated");
     } else {
-      setProperties((prev) => [...prev, payload]);
-      showToast("Property created");
+      const result = await createProperty(form);
+      showToast(
+        result.error
+          ? "Saved locally (API unavailable)"
+          : result.source === "api"
+            ? "Property created via API"
+            : "Property created",
+      );
     }
     resetForm();
   };
 
-  const deleteProperty = (id: string) => {
-    setProperties((prev) => prev.filter((p) => p.id !== id));
-    setJoinRequests((prev) => prev.filter((r) => r.property_id !== id));
-    showToast("Property deleted");
+  const deleteProperty = async (id: string) => {
+    const result = await removeProperty(id);
+    if (result.ok) {
+      setJoinRequests((prev) => prev.filter((r) => r.property_id !== id));
+      showToast(
+        result.error ? "Removed locally (API unavailable)" : "Property deleted",
+      );
+    } else {
+      showToast(result.error ?? "Could not delete property");
+    }
   };
 
-  const adjustRent = (id: string, delta: number) => {
-    setProperties((prev) =>
-      prev.map((p) =>
-        p.id === id ? { ...p, weekly_rent: Math.max(0, p.weekly_rent + delta) } : p,
-      ),
+  const adjustRent = async (id: string, delta: number) => {
+    const property = properties.find((p) => p.id === id);
+    if (!property) return;
+    const newRent = Math.max(0, property.weekly_rent + delta);
+    const formFromProperty: PropertyFormData = {
+      name: property.name,
+      address: property.address,
+      suburb: property.suburb,
+      city: property.city,
+      property_type: property.property_type,
+      bedrooms: String(property.bedrooms),
+      bathrooms: String(property.bathrooms),
+      weekly_rent: String(newRent),
+      bond: String(property.bond),
+      available_rooms: String(property.available_rooms),
+      max_flatmates: String(property.max_flatmates),
+      description: property.description,
+      rules: property.rules.join(", "),
+    };
+    const result = await updateProperty(id, formFromProperty, newRent);
+    showToast(
+      result.error
+        ? delta > 0
+          ? "Rent increased locally"
+          : "Rent decreased locally"
+        : delta > 0
+          ? "Rent increased by $10"
+          : "Rent decreased by $10",
     );
-    showToast(delta > 0 ? "Rent increased by $10" : "Rent decreased by $10");
   };
 
   const requestJoin = (propertyId: string) => {
@@ -335,6 +397,16 @@ function HomeHubApp() {
     setOverlay(null);
     setActiveChatId(null);
     showToast(`Switched to ${role} demo`);
+  };
+
+  const signOut = async () => {
+    await tokenStorage.clearTokens();
+    setDemoRole("flatmate");
+    setTab("home");
+    setSubScreen(null);
+    setOverlay(null);
+    setActiveChatId(null);
+    showToast("Signed out successfully");
   };
 
   const navigateTab = (t: TabId) => {
@@ -653,7 +725,25 @@ function HomeHubApp() {
       );
       showToast("Announcement updated");
     },
+    onAlertAction: () => showToast("Alert action completed (mock)"),
+    onEmergencyCall: (name: string, phone: string) =>
+      showToast(`Calling ${name} at ${phone} (mock)`),
   };
+
+  const renderProfile = () => (
+    <ProfileScreen
+      role={demoRole}
+      propertyCount={properties.length}
+      paymentCount={rentPayments.length}
+      requestCount={joinRequests.length}
+      unreadNotifications={unreadNotifications}
+      isDark={isDark}
+      onToggleTheme={toggleTheme}
+      onSwitchRole={switchRole}
+      onNavigate={openSubScreen}
+      onSignOut={signOut}
+    />
+  );
 
   function formatCurrency(n: number) {
     return `$${n.toLocaleString("en-NZ")}`;
@@ -674,6 +764,10 @@ function HomeHubApp() {
           onSend={sendMessage}
         />
       );
+    }
+
+    if (subScreen === "profile") {
+      return renderProfile();
     }
 
     if (subScreen) {
@@ -698,25 +792,32 @@ function HomeHubApp() {
               nextRentDate={nextRentDate}
               nextRentAmount={nextRentAmount}
               flatName={joinedProperty?.name ?? null}
+              alertLevel={alertLevel}
+              alertTitle={alertTitle}
+              occupancyRate={0}
               maintenanceCount={maintenanceActive}
               unreadMessages={unreadMessages}
               unreadNotifications={unreadNotifications}
-              billsDueCount={billsDueCount}
-              choresPending={choresPending}
+              notifications={notifications}
               monthlyIncome={0}
               propertyCount={0}
               pendingRequests={0}
               outstandingRent={0}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
               onMyFlat={() => navigateTab("myflat")}
               onRent={() => navigateTab("rent")}
               onMessages={() => navigateTab("messages")}
-              onNotifications={() => openSubScreen("notifications")}
-              onChores={() => openSubScreen("chores")}
-              onBills={() => openSubScreen("bills")}
+              onRules={() => openSubScreen("house-rules")}
+              onEmergency={() => openSubScreen("emergency-hub")}
               onCalendar={() => openSubScreen("calendar")}
-              onAI={() => openSubScreen("ai-assistant")}
+              onAlerts={() => openSubScreen("alerts")}
+              onNotifications={() => openSubScreen("notifications")}
               onProperties={() => {}}
-              onRequests={() => {}}
+              onTenants={() => {}}
+              onPayments={() => {}}
+              onMaintenance={() => openSubScreen("maintenance")}
+              onProfile={() => navigateTab("profile")}
             />
           );
         case "myflat":
@@ -737,6 +838,10 @@ function HomeHubApp() {
               unreadAnnouncements={unreadAnnouncements}
               shoppingPending={shoppingPending}
               upcomingVisitors={upcomingVisitors}
+              propertiesLoading={propertiesLoading}
+              propertiesError={propertiesError}
+              propertiesSource={propertiesSource}
+              onRetryProperties={reloadProperties}
               onRequestJoin={requestJoin}
               onCancelRequest={cancelJoinRequest}
               onLeaveFlat={leaveFlat}
@@ -745,6 +850,8 @@ function HomeHubApp() {
                 navigateTab("messages");
                 openChat("c2");
               }}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
             />
           );
         case "rent":
@@ -753,26 +860,22 @@ function HomeHubApp() {
               sections={rentSections}
               onUploadReceipt={() => showToast("Receipt uploaded (mock)")}
               onDownloadLedger={() => showToast("Ledger downloaded (mock)")}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
             />
           );
         case "messages":
           return (
-            <MessagesScreen conversations={conversations} onOpenChat={openChat} isTab />
-          );
-        case "profile":
-          return (
-            <ProfileScreen
-              role={demoRole}
-              propertyCount={properties.length}
-              paymentCount={rentPayments.length}
-              requestCount={joinRequests.length}
-              unreadNotifications={unreadNotifications}
-              isDark={isDark}
-              onToggleTheme={toggleTheme}
-              onSwitchRole={switchRole}
-              onNotifications={() => openSubScreen("notifications")}
+            <MessagesScreen
+              conversations={conversations}
+              onOpenChat={openChat}
+              isTab
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
             />
           );
+        case "profile":
+          return renderProfile();
         default:
           return null;
       }
@@ -787,25 +890,32 @@ function HomeHubApp() {
             nextRentDate={null}
             nextRentAmount={0}
             flatName={null}
+            alertLevel={alertLevel}
+            alertTitle={alertTitle}
+            occupancyRate={occupancyRate}
             maintenanceCount={maintenanceActive}
             unreadMessages={unreadMessages}
             unreadNotifications={0}
-            billsDueCount={0}
-            choresPending={0}
+            notifications={notifications}
             monthlyIncome={monthlyIncome}
             propertyCount={properties.length}
             pendingRequests={pendingLandlordRequests.length}
             outstandingRent={rentSections.current_due_total + rentSections.overdue_total}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
             onMyFlat={() => {}}
-            onRent={() => navigateTab("rent")}
+            onRent={() => navigateTab("payments")}
             onMessages={() => {}}
-            onNotifications={() => {}}
-            onChores={() => {}}
-            onBills={() => {}}
+            onRules={() => {}}
+            onEmergency={() => openSubScreen("emergency-hub")}
             onCalendar={() => {}}
-            onAI={() => {}}
+            onAlerts={() => openSubScreen("alerts")}
+            onNotifications={() => openSubScreen("notifications")}
             onProperties={() => navigateTab("properties")}
-            onRequests={() => navigateTab("requests")}
+            onTenants={() => navigateTab("tenants")}
+            onPayments={() => navigateTab("payments")}
+            onMaintenance={() => navigateTab("maintenance")}
+            onProfile={() => openSubScreen("profile")}
           />
         );
       case "properties":
@@ -815,6 +925,11 @@ function HomeHubApp() {
             showForm={showPropertyForm}
             editing={!!editingId}
             form={form}
+            propertiesLoading={propertiesLoading}
+            propertiesSaving={propertiesSaving}
+            propertiesError={propertiesError}
+            propertiesSource={propertiesSource}
+            onRetryProperties={reloadProperties}
             onFormChange={(k, v) => setForm((f) => ({ ...f, [k]: v }))}
             onShowForm={() => {
               resetForm();
@@ -827,35 +942,37 @@ function HomeHubApp() {
             onAdjustRent={adjustRent}
           />
         );
-      case "requests":
+      case "tenants":
         return (
-          <RequestsScreen
+          <TenantsScreen
             properties={properties}
             joinRequests={joinRequests}
             onApprove={approveRequest}
             onReject={rejectRequest}
+            onViewProperty={(p) => {
+              loadForm(p);
+              navigateTab("properties");
+            }}
           />
         );
-      case "rent":
+      case "payments":
         return (
           <RentScreen
             sections={rentSections}
             onUploadReceipt={() => showToast("Receipt uploaded (mock)")}
             onDownloadLedger={() => showToast("Ledger downloaded (mock)")}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
           />
         );
-      case "profile":
+      case "maintenance":
         return (
-          <ProfileScreen
-            role={demoRole}
-            propertyCount={properties.length}
-            paymentCount={rentPayments.length}
-            requestCount={joinRequests.length}
-            unreadNotifications={0}
-            isDark={isDark}
-            onToggleTheme={toggleTheme}
-            onSwitchRole={switchRole}
-            onNotifications={() => {}}
+          <MaintenanceScreen
+            requests={maintenance}
+            onBack={() => navigateTab("home")}
+            onAdd={(title) => flatFeatureActions.onAddMaintenance(title)}
+            onMessageContractor={flatFeatureActions.onMessageContractor}
+            onResolve={flatFeatureActions.onResolveMaintenance}
           />
         );
       default:
@@ -883,6 +1000,7 @@ function HomeHubApp() {
             active={tab}
             onChange={navigateTab}
             unreadMessages={unreadMessages}
+            unreadNotifications={unreadNotifications}
           />
         )}
       </SafeAreaView>

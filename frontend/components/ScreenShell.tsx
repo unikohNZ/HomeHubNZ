@@ -1,29 +1,54 @@
 import { ReactNode } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../context/ThemeContext";
+import { spacing, typography } from "../constants/design";
 
 interface ScreenShellProps {
   title: string;
   subtitle?: string;
   children: ReactNode;
   headerRight?: ReactNode;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+  /** Extra bottom padding so content clears fixed tab bars (default 32). */
+  bottomPadding?: number;
 }
 
-export function ScreenShell({ title, subtitle, children, headerRight }: ScreenShellProps) {
+export function ScreenShell({
+  title,
+  subtitle,
+  children,
+  headerRight,
+  refreshing,
+  onRefresh,
+  bottomPadding = spacing.xxxl,
+}: ScreenShellProps) {
   const { theme } = useTheme();
 
   return (
     <ScrollView
       style={[styles.scroll, { backgroundColor: theme.bg }]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      bounces
+      alwaysBounceVertical
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={!!refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        ) : undefined
+      }
     >
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
           {subtitle && (
-            <Text style={[styles.subtitle, { color: theme.textMuted }]}>{subtitle}</Text>
+            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
           )}
         </View>
         {headerRight}
@@ -35,14 +60,14 @@ export function ScreenShell({ title, subtitle, children, headerRight }: ScreenSh
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
-  content: { padding: 20, paddingBottom: 32 },
+  content: { padding: spacing.xl, flexGrow: 1 },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   headerText: { flex: 1 },
-  title: { fontSize: 28, fontWeight: "800", letterSpacing: -0.5 },
-  subtitle: { fontSize: 14, marginTop: 4 },
+  title: { ...typography.hero, color: "#fff" },
+  subtitle: { fontSize: 14, marginTop: spacing.xs, lineHeight: 20 },
 });

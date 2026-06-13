@@ -1,61 +1,63 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { RentCard } from "../components/RentCard";
 import { ScreenShell } from "../components/ScreenShell";
+import { Badge } from "../components/ui/Badge";
+import { SectionHeader } from "../components/ui/SectionHeader";
 import { useTheme } from "../context/ThemeContext";
 import { RentSections } from "../types/rent";
 import { formatCurrency } from "../utils/format";
 import { formatDate, TODAY } from "../utils/rentDates";
+import { radius, spacing } from "../constants/design";
 
 interface RentScreenProps {
   sections: RentSections;
   onUploadReceipt: () => void;
   onDownloadLedger: () => void;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }
 
 export function RentScreen({
   sections,
   onUploadReceipt,
   onDownloadLedger,
+  refreshing,
+  onRefresh,
 }: RentScreenProps) {
   const { theme } = useTheme();
   const todayLabel = formatDate(TODAY);
 
   return (
-    <ScreenShell title="Rent Tracker" subtitle="Payments, due dates & history">
+    <ScreenShell
+      title="Rent Tracker"
+      subtitle="Payments, due dates & ledger"
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+    >
       <View style={[styles.todayBar, { backgroundColor: theme.primaryMuted, borderColor: theme.primary }]}>
-        <Text style={[styles.todayLabel, { color: theme.primary }]}>Today</Text>
-        <Text style={[styles.todayDate, { color: theme.text }]}>{todayLabel}</Text>
+        <View>
+          <Text style={[styles.todayLabel, { color: theme.primary }]}>Current Date</Text>
+          <Text style={[styles.todayDate, { color: theme.text }]}>{todayLabel}</Text>
+        </View>
+        <Badge
+          label={sections.overdue_total > 0 ? "Overdue" : "On Track"}
+          tone={sections.overdue_total > 0 ? "danger" : "success"}
+        />
       </View>
 
       <View style={styles.summary}>
-        <SummaryPill
-          label="Current Due"
-          value={formatCurrency(sections.current_due_total)}
-          tone="warning"
-        />
-        <SummaryPill
-          label="Upcoming"
-          value={formatCurrency(sections.upcoming_total)}
-          tone="primary"
-        />
-        <SummaryPill
-          label="Overdue"
-          value={formatCurrency(sections.overdue_total)}
-          tone="danger"
-        />
-        <SummaryPill
-          label="Paid This Month"
-          value={formatCurrency(sections.paid_this_month)}
-          tone="success"
-        />
+        <SummaryCard label="Current Due" value={formatCurrency(sections.current_due_total)} tone="warning" />
+        <SummaryCard label="Upcoming" value={formatCurrency(sections.upcoming_total)} tone="primary" />
+        <SummaryCard label="Overdue" value={formatCurrency(sections.overdue_total)} tone="danger" />
+        <SummaryCard label="Paid This Month" value={formatCurrency(sections.paid_this_month)} tone="success" />
       </View>
 
       <View style={styles.actions}>
         <Pressable
-          style={[styles.actionBtn, { backgroundColor: theme.primaryMuted, borderColor: theme.primary }]}
+          style={[styles.actionBtn, { backgroundColor: theme.primary }]}
           onPress={onUploadReceipt}
         >
-          <Text style={[styles.actionText, { color: theme.primary }]}>📎 Upload Receipt</Text>
+          <Text style={styles.actionTextPrimary}>📎 Upload Receipt</Text>
         </Pressable>
         <Pressable
           style={[styles.actionBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
@@ -67,7 +69,7 @@ export function RentScreen({
 
       {sections.current_due.length > 0 && (
         <>
-          <Text style={[styles.section, { color: theme.text }]}>Current Rent Due</Text>
+          <SectionHeader title="Current Due" />
           {sections.current_due.map((p) => (
             <RentCard key={p.id} payment={p} />
           ))}
@@ -76,7 +78,7 @@ export function RentScreen({
 
       {sections.upcoming.length > 0 && (
         <>
-          <Text style={[styles.section, { color: theme.text }]}>Upcoming Payments</Text>
+          <SectionHeader title="Upcoming Payments" />
           {sections.upcoming.map((p) => (
             <RentCard key={p.id} payment={p} />
           ))}
@@ -85,7 +87,7 @@ export function RentScreen({
 
       {sections.overdue.length > 0 && (
         <>
-          <Text style={[styles.section, { color: theme.text }]}>Overdue Payments</Text>
+          <SectionHeader title="Overdue Payments" />
           {sections.overdue.map((p) => (
             <RentCard key={p.id} payment={p} />
           ))}
@@ -94,7 +96,7 @@ export function RentScreen({
 
       {sections.history.length > 0 && (
         <>
-          <Text style={[styles.section, { color: theme.text }]}>Payment History</Text>
+          <SectionHeader title="Payment History" />
           {sections.history.map((p) => (
             <RentCard key={p.id} payment={p} />
           ))}
@@ -104,7 +106,7 @@ export function RentScreen({
   );
 }
 
-function SummaryPill({
+function SummaryCard({
   label,
   value,
   tone,
@@ -131,34 +133,28 @@ function SummaryPill({
 
 const styles = StyleSheet.create({
   todayBar: {
-    borderRadius: 18,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    padding: 16,
-    marginBottom: 14,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  todayLabel: { fontSize: 13, fontWeight: "700", textTransform: "uppercase" },
-  todayDate: { fontSize: 16, fontWeight: "800" },
-  summary: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
-  pill: {
-    width: "47%",
-    flexGrow: 1,
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 14,
-  },
+  todayLabel: { fontSize: 12, fontWeight: "700", textTransform: "uppercase" },
+  todayDate: { fontSize: 18, fontWeight: "800", marginTop: 2 },
+  summary: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, marginBottom: spacing.lg },
+  pill: { width: "47%", flexGrow: 1, borderRadius: radius.xl, borderWidth: 1, padding: spacing.lg },
   pillLabel: { fontSize: 11, fontWeight: "600" },
-  pillValue: { fontSize: 18, fontWeight: "800", marginTop: 4 },
-  actions: { flexDirection: "row", gap: 10, marginBottom: 16 },
+  pillValue: { fontSize: 20, fontWeight: "800", marginTop: 4 },
+  actions: { flexDirection: "row", gap: spacing.md, marginBottom: spacing.lg },
   actionBtn: {
     flex: 1,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
     paddingVertical: 14,
     alignItems: "center",
   },
+  actionTextPrimary: { color: "#fff", fontSize: 13, fontWeight: "700" },
   actionText: { fontSize: 13, fontWeight: "700" },
-  section: { fontSize: 17, fontWeight: "700", marginBottom: 12, marginTop: 4 },
 });

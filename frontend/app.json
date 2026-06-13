@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "scheme": "homehub",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#060d1f",
+    "backgroundColor": "#04142D",
     "web": {
       "bundler": "metro"
     },
@@ -17,7 +17,7 @@
     "android": {
       "package": "nz.homehub.app",
       "adaptiveIcon": {
-        "backgroundColor": "#060d1f"
+        "backgroundColor": "#04142D"
       }
     },
     "plugins": [

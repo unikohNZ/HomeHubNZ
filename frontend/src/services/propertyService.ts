@@ -2,7 +2,6 @@ import api from "./api";
 import { Property } from "@/types";
 import { MOCK_PROPERTIES } from "@/data/mockData";
 
-const USE_MOCK = true;
 const delay = (ms = 500) => new Promise((r) => setTimeout(r, ms));
 
 export type NewPropertyInput = Omit<
@@ -12,25 +11,30 @@ export type NewPropertyInput = Omit<
 
 export const propertyService = {
   async list(): Promise<Property[]> {
-    if (USE_MOCK) {
-      await delay();
+    try {
+      const { data } = await api.get<Property[]>("/properties");
+      return data?.length ? data : MOCK_PROPERTIES;
+    } catch {
+      await delay(200);
       return MOCK_PROPERTIES;
     }
-    const { data } = await api.get("/properties");
-    return data;
   },
 
   async get(id: number): Promise<Property | undefined> {
-    if (USE_MOCK) {
+    try {
+      const { data } = await api.get<Property>(`/properties/${id}`);
+      return data;
+    } catch {
       await delay(200);
       return MOCK_PROPERTIES.find((p) => p.id === id);
     }
-    const { data } = await api.get(`/properties/${id}`);
-    return data;
   },
 
   async create(input: NewPropertyInput): Promise<Property> {
-    if (USE_MOCK) {
+    try {
+      const { data } = await api.post<Property>("/properties", input);
+      return data;
+    } catch {
       await delay();
       return {
         ...input,
@@ -42,7 +46,5 @@ export const propertyService = {
         full_address: `${input.address_line1}, ${input.suburb}, ${input.city} ${input.postcode}`,
       };
     }
-    const { data } = await api.post("/properties", input);
-    return data;
   },
 };

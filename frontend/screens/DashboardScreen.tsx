@@ -1,9 +1,14 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { FlatmateDashboard, LandlordDashboard } from "../components/Dashboard";
 import { NotificationBell } from "../components/NotificationBell";
 import { ScreenShell } from "../components/ScreenShell";
+import { UserAvatar } from "../components/UserAvatar";
 import { useTheme } from "../context/ThemeContext";
+import { FLATMATE_USER, LANDLORD_USER } from "../data/mockUsers";
+import { AppNotification } from "../types/flat";
 import { DemoRole } from "../types";
+import { AlertLevel } from "../components/ui/AlertStatusBanner";
+import { spacing } from "../constants/design";
 
 interface DashboardScreenProps {
   role: DemoRole;
@@ -11,25 +16,32 @@ interface DashboardScreenProps {
   nextRentDate: string | null;
   nextRentAmount: number;
   flatName: string | null;
-  maintenanceCount: number;
+  alertLevel: AlertLevel;
+  alertTitle: string;
+  occupancyRate: number;
   unreadMessages: number;
   unreadNotifications: number;
-  billsDueCount: number;
-  choresPending: number;
+  notifications: AppNotification[];
   monthlyIncome: number;
   propertyCount: number;
   pendingRequests: number;
   outstandingRent: number;
+  maintenanceCount: number;
+  refreshing?: boolean;
+  onRefresh?: () => void;
   onMyFlat: () => void;
   onRent: () => void;
   onMessages: () => void;
-  onNotifications: () => void;
-  onChores: () => void;
-  onBills: () => void;
+  onRules: () => void;
+  onEmergency: () => void;
   onCalendar: () => void;
-  onAI: () => void;
+  onAlerts: () => void;
+  onNotifications: () => void;
   onProperties: () => void;
-  onRequests: () => void;
+  onTenants: () => void;
+  onPayments: () => void;
+  onMaintenance: () => void;
+  onProfile: () => void;
 }
 
 export function DashboardScreen({
@@ -38,39 +50,52 @@ export function DashboardScreen({
   nextRentDate,
   nextRentAmount,
   flatName,
-  maintenanceCount,
+  alertLevel,
+  alertTitle,
+  occupancyRate,
   unreadMessages,
   unreadNotifications,
-  billsDueCount,
-  choresPending,
+  notifications,
   monthlyIncome,
   propertyCount,
   pendingRequests,
   outstandingRent,
+  maintenanceCount,
+  refreshing,
+  onRefresh,
   onMyFlat,
   onRent,
   onMessages,
-  onNotifications,
-  onChores,
-  onBills,
+  onRules,
+  onEmergency,
   onCalendar,
-  onAI,
+  onAlerts,
+  onNotifications,
   onProperties,
-  onRequests,
+  onTenants,
+  onPayments,
+  onMaintenance,
+  onProfile,
 }: DashboardScreenProps) {
   const { theme } = useTheme();
+  const user = role === "landlord" ? LANDLORD_USER : FLATMATE_USER;
 
   return (
     <ScreenShell
       title="HomeHub NZ"
-      subtitle={role === "flatmate" ? "Your flat, rent & household hub" : "Property management dashboard"}
+      subtitle={role === "flatmate" ? "Kia ora — your household hub" : "Landlord property portal"}
+      refreshing={refreshing}
+      onRefresh={onRefresh}
       headerRight={
         <View style={styles.headerRight}>
+          <Pressable onPress={onProfile}>
+            <UserAvatar name={user.name} color={user.avatar_color} size={40} />
+          </Pressable>
           {role === "flatmate" && (
             <NotificationBell count={unreadNotifications} onPress={onNotifications} />
           )}
-          <View style={[styles.nzBadge, { backgroundColor: theme.primaryMuted }]}>
-            <Text style={[styles.nzText, { color: theme.primary }]}>NZ</Text>
+          <View style={[styles.nzBadge, { backgroundColor: theme.accentMuted }]}>
+            <Text style={[styles.nzText, { color: theme.accent }]}>NZ</Text>
           </View>
         </View>
       }
@@ -81,30 +106,31 @@ export function DashboardScreen({
           nextRentDate={nextRentDate}
           nextRentAmount={nextRentAmount}
           flatName={flatName}
-          maintenanceCount={maintenanceCount}
-          unreadMessages={unreadMessages}
-          unreadNotifications={unreadNotifications}
-          billsDueCount={billsDueCount}
-          choresPending={choresPending}
+          alertLevel={alertLevel}
+          alertTitle={alertTitle}
+          notifications={notifications}
           onMyFlat={onMyFlat}
           onRent={onRent}
           onMessages={onMessages}
-          onNotifications={onNotifications}
-          onChores={onChores}
-          onBills={onBills}
+          onRules={onRules}
+          onEmergency={onEmergency}
           onCalendar={onCalendar}
-          onAI={onAI}
+          onAlerts={onAlerts}
+          onNotifications={onNotifications}
         />
       ) : (
         <LandlordDashboard
           monthlyIncome={monthlyIncome}
           propertyCount={propertyCount}
-          pendingRequests={pendingRequests}
+          occupancyRate={occupancyRate}
           outstandingRent={outstandingRent}
           maintenanceCount={maintenanceCount}
+          pendingRequests={pendingRequests}
           onProperties={onProperties}
-          onRequests={onRequests}
-          onRent={onRent}
+          onTenants={onTenants}
+          onPayments={onPayments}
+          onMaintenance={onMaintenance}
+          onProfile={onProfile}
         />
       )}
     </ScreenShell>
@@ -112,7 +138,7 @@ export function DashboardScreen({
 }
 
 const styles = StyleSheet.create({
-  headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   nzBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
   nzText: { fontSize: 12, fontWeight: "800" },
 });

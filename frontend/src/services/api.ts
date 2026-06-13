@@ -1,17 +1,29 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
-import { storage } from "./storage";
+import { tokenStorage } from "./tokenStorage";
 
 /**
  * Central Axios instance for HomeHub NZ.
  *
- * Base URL points at the local FastAPI backend by default and can be
- * overridden with EXPO_PUBLIC_API_URL for staging / production (AWS EC2).
- * JWT access tokens are attached automatically and refreshed on 401.
+ * Default base URL targets the local FastAPI backend:
+ * - iOS simulator / web: http://127.0.0.1:8000
+ * - Android emulator: http://10.0.2.2:8000 (uncomment ANDROID line below)
+ *
+ * Override with EXPO_PUBLIC_API_URL for staging / production.
  */
 
-export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+function resolveApiBaseUrl(): string {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, "");
+  }
 
+  // Android emulator — uncomment to reach host machine localhost:
+  // if (Platform.OS === "android") return "http://10.0.2.2:8000";
+
+  // iOS simulator, web preview, and default dev
+  return "http://127.0.0.1:8000";
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
 export const API_V1_URL = `${API_BASE_URL}/api/v1`;
 
 export const ACCESS_TOKEN_KEY = "homehub_access_token";
@@ -24,7 +36,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
-  const token = await storage.getItem(ACCESS_TOKEN_KEY);
+  const token = await tokenStorage.getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -40,19 +52,17 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && original && !original._retry) {
       original._retry = true;
-      const refreshToken = await storage.getItem(REFRESH_TOKEN_KEY);
+      const refreshToken = await tokenStorage.getRefreshToken();
       if (refreshToken) {
         try {
           const { data } = await axios.post(`${API_V1_URL}/auth/refresh`, {
             refresh_token: refreshToken,
           });
-          await storage.setItem(ACCESS_TOKEN_KEY, data.access_token);
-          await storage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
+          await tokenStorage.setTokens(data.access_token, data.refresh_token);
           original.headers.Authorization = `Bearer ${data.access_token}`;
           return api(original);
         } catch {
-          await storage.removeItem(ACCESS_TOKEN_KEY);
-          await storage.removeItem(REFRESH_TOKEN_KEY);
+          await tokenStorage.clearTokens();
         }
       }
     }
@@ -60,5 +70,18 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+export function getApiErrorMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    if (error.code === "ECONNABORTED") return "Request timed out";
+    if (!error.response) return "Cannot reach the backend server";
+    const detail = error.response.data as { detail?: string | { msg: string }[] };
+    if (typeof detail?.detail === "string") return detail.detail;
+    if (Array.isArray(detail?.detail)) return detail.detail[0]?.msg ?? "Request failed";
+    return `Request failed (${error.response.status})`;
+  }
+  if (error instanceof Error) return error.message;
+  return "Something went wrong";
+}
 
 export default api;

@@ -1,5 +1,8 @@
 export type SubScreen =
+  | "profile"
   | "notifications"
+  | "alerts"
+  | "emergency-hub"
   | "flatmates"
   | "house-rules"
   | "chores"

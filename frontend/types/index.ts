@@ -1,7 +1,7 @@
 export type DemoRole = "flatmate" | "landlord";
 
 export type FlatmateTabId = "home" | "myflat" | "rent" | "messages" | "profile";
-export type LandlordTabId = "home" | "properties" | "requests" | "rent" | "profile";
+export type LandlordTabId = "home" | "properties" | "tenants" | "payments" | "maintenance";
 export type TabId = FlatmateTabId | LandlordTabId;
 
 export * from "./navigation";
