@@ -5,20 +5,53 @@ import { StatusBar } from "expo-status-bar";
 import { BottomNavigation } from "./components/BottomNavigation";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { DEFAULT_RULES } from "./data/constants";
+import { DEMO_APPROVED_JOIN } from "./data/demoJoin";
 import { EMPTY_PROPERTY_FORM, nextId } from "./data/formDefaults";
+import {
+  MOCK_AI_QUESTIONS,
+  MOCK_CALENDAR_EVENTS,
+  MOCK_CHORES,
+  MOCK_EMERGENCY_CONTACTS,
+  MOCK_FEED_POSTS,
+  MOCK_FLATMATE_MEMBERS,
+  MOCK_HOUSE_RULES,
+  MOCK_MAINTENANCE,
+  MOCK_NOTIFICATIONS,
+  MOCK_SHARED_BILLS,
+} from "./data/mockFlatData";
+import {
+  MOCK_AGREEMENT,
+  MOCK_ANNOUNCEMENTS,
+  MOCK_AVAILABILITY,
+  MOCK_BOND,
+  MOCK_CHECKLIST,
+  MOCK_DOCUMENTS,
+  MOCK_EXPENSES,
+  MOCK_GALLERY,
+  MOCK_HOUSE_VIBE,
+  MOCK_LEASE_TIMELINE,
+  MOCK_MAINTENANCE_HISTORY,
+  MOCK_PROPERTY_HEALTH,
+  MOCK_SHOPPING,
+  MOCK_UTILITIES,
+  MOCK_VISITORS,
+} from "./data/mockFlatExtended";
 import { INITIAL_JOIN_REQUESTS, MOCK_CHAT_MESSAGES, MOCK_CONVERSATIONS } from "./data/mockMessages";
 import { MOCK_PROPERTIES } from "./data/mockProperties";
 import { MOCK_RENT_PAYMENTS } from "./data/mockRent";
 import { FLATMATE_USER } from "./data/mockUsers";
 import { ChatScreen } from "./screens/ChatScreen";
 import { DashboardScreen } from "./screens/DashboardScreen";
+import { FlatFeatureRouter } from "./screens/FlatFeatureRouter";
 import { MessagesScreen } from "./screens/MessagesScreen";
 import { MyFlatScreen } from "./screens/MyFlatScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { PropertiesScreen } from "./screens/PropertiesScreen";
 import { RentScreen } from "./screens/RentScreen";
 import { RequestsScreen } from "./screens/RequestsScreen";
-import { DemoRole, OverlayScreen, TabId } from "./types";
+import { DemoRole, OverlayScreen, SubScreen, TabId } from "./types";
+import { CalendarEvent, FeedPost, HouseRule, RuleCategory } from "./types/flat";
+import { AvailabilityStatus } from "./types/flatExtended";
 import { ChatMessage, Conversation } from "./types/message";
 import { Property, PropertyFormData } from "./types/property";
 import { JoinRequest } from "./types/request";
@@ -26,7 +59,7 @@ import { RentPayment } from "./types/rent";
 import { buildRentSections, getNextRentDate } from "./utils/rentHelpers";
 
 const PHONE_MAX = 430;
-const MAINTENANCE_COUNT = 2;
+const CURRENT_USER_ID = "fm1";
 
 export default function App() {
   return (
@@ -42,15 +75,43 @@ function HomeHubApp() {
   const { theme, isDark, toggleTheme } = useTheme();
   const [demoRole, setDemoRole] = useState<DemoRole>("flatmate");
   const [tab, setTab] = useState<TabId>("home");
+  const [subScreen, setSubScreen] = useState<SubScreen | null>(null);
   const [overlay, setOverlay] = useState<OverlayScreen>(null);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const [properties, setProperties] = useState<Property[]>(MOCK_PROPERTIES);
-  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>(INITIAL_JOIN_REQUESTS);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([
+    DEMO_APPROVED_JOIN,
+    ...INITIAL_JOIN_REQUESTS,
+  ]);
   const [rentPayments] = useState<RentPayment[]>(MOCK_RENT_PAYMENTS);
   const [conversations, setConversations] = useState<Conversation[]>(MOCK_CONVERSATIONS);
   const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>(MOCK_CHAT_MESSAGES);
+
+  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const [houseRules, setHouseRules] = useState(MOCK_HOUSE_RULES);
+  const [chores, setChores] = useState(MOCK_CHORES);
+  const [bills, setBills] = useState(MOCK_SHARED_BILLS);
+  const [calendarEvents, setCalendarEvents] = useState(MOCK_CALENDAR_EVENTS);
+  const [maintenance, setMaintenance] = useState(MOCK_MAINTENANCE);
+  const [feedPosts, setFeedPosts] = useState(MOCK_FEED_POSTS);
+
+  const [documents] = useState(MOCK_DOCUMENTS);
+  const [bond] = useState(MOCK_BOND);
+  const [checklist, setChecklist] = useState(MOCK_CHECKLIST);
+  const [expenses] = useState(MOCK_EXPENSES);
+  const [availability, setAvailability] = useState(MOCK_AVAILABILITY);
+  const [shopping, setShopping] = useState(MOCK_SHOPPING);
+  const [visitors, setVisitors] = useState(MOCK_VISITORS);
+  const [utilities] = useState(MOCK_UTILITIES);
+  const [leaseTimeline] = useState(MOCK_LEASE_TIMELINE);
+  const [houseVibe] = useState(MOCK_HOUSE_VIBE);
+  const [maintenanceHistory] = useState(MOCK_MAINTENANCE_HISTORY);
+  const [gallery] = useState(MOCK_GALLERY);
+  const [agreement, setAgreement] = useState(MOCK_AGREEMENT);
+  const [announcements, setAnnouncements] = useState(MOCK_ANNOUNCEMENTS);
+  const [propertyHealth] = useState(MOCK_PROPERTY_HEALTH);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showPropertyForm, setShowPropertyForm] = useState(false);
@@ -72,18 +133,30 @@ function HomeHubApp() {
     : null;
 
   const pendingLandlordRequests = joinRequests.filter((r) => r.status === "pending");
-
   const rentSections = useMemo(() => buildRentSections(rentPayments), [rentPayments]);
   const nextRentDate = useMemo(() => getNextRentDate(rentPayments), [rentPayments]);
+  const nextRentAmount =
+    rentSections.current_due[0]?.amount ?? rentSections.upcoming[0]?.amount ?? 0;
 
   const monthlyIncome = useMemo(
     () => properties.reduce((s, p) => s + p.weekly_rent * 4, 0),
     [properties],
   );
 
-  const flatmateRentDue =
-    rentSections.current_due_total + rentSections.overdue_total;
-  const upcomingBills = rentSections.upcoming.length;
+  const flatmateRentDue = rentSections.current_due_total + rentSections.overdue_total;
+  const unreadMessages = conversations.reduce((s, c) => s + c.unread_count, 0);
+  const unreadNotifications = notifications.filter((n) => !n.read).length;
+  const billsDueCount = bills.filter(
+    (b) => b.owes.includes(FLATMATE_USER.name) && b.status !== "paid",
+  ).length;
+  const choresPending = chores.filter(
+    (c) => c.assigned_id === CURRENT_USER_ID && c.status !== "completed",
+  ).length;
+  const maintenanceActive = maintenance.filter((m) => m.status !== "completed").length;
+  const documentCount = documents.length;
+  const unreadAnnouncements = announcements.filter((a) => !a.read).length;
+  const shoppingPending = shopping.filter((s) => !s.purchased).length;
+  const upcomingVisitors = visitors.filter((v) => v.upcoming).length;
 
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -97,7 +170,13 @@ function HomeHubApp() {
     );
   }, [properties, searchQuery]);
 
-  const unreadMessages = conversations.reduce((s, c) => s + c.unread_count, 0);
+  const openSubScreen = (screen: SubScreen) => {
+    setSubScreen(screen);
+    setOverlay(null);
+    setActiveChatId(null);
+  };
+
+  const closeSubScreen = () => setSubScreen(null);
 
   const resetForm = () => {
     setForm(EMPTY_PROPERTY_FORM);
@@ -130,10 +209,7 @@ function HomeHubApp() {
       showToast("Name, address and rent are required");
       return;
     }
-    const rules = form.rules
-      .split(",")
-      .map((r) => r.trim())
-      .filter(Boolean);
+    const rules = form.rules.split(",").map((r) => r.trim()).filter(Boolean);
     const payload: Property = {
       id: editingId ?? nextId(),
       name: form.name.trim(),
@@ -255,6 +331,7 @@ function HomeHubApp() {
   const switchRole = (role: DemoRole) => {
     setDemoRole(role);
     setTab("home");
+    setSubScreen(null);
     setOverlay(null);
     setActiveChatId(null);
     showToast(`Switched to ${role} demo`);
@@ -262,6 +339,7 @@ function HomeHubApp() {
 
   const navigateTab = (t: TabId) => {
     setTab(t);
+    setSubScreen(null);
     setOverlay(null);
     setActiveChatId(null);
   };
@@ -269,6 +347,7 @@ function HomeHubApp() {
   const openChat = (id: string) => {
     setActiveChatId(id);
     setOverlay("chat");
+    setSubScreen(null);
     setConversations((prev) =>
       prev.map((c) => (c.id === id ? { ...c, unread_count: 0 } : c)),
     );
@@ -290,12 +369,295 @@ function HomeHubApp() {
     }));
     setConversations((prev) =>
       prev.map((c) =>
-        c.id === activeChatId
-          ? { ...c, last_message: content, last_time: "Just now" }
-          : c,
+        c.id === activeChatId ? { ...c, last_message: content, last_time: "Just now" } : c,
       ),
     );
   };
+
+  const flatFeatureState = {
+    notifications,
+    flatmates: MOCK_FLATMATE_MEMBERS,
+    houseRules,
+    chores,
+    bills,
+    calendarEvents,
+    emergencyContacts: MOCK_EMERGENCY_CONTACTS,
+    maintenance,
+    feedPosts,
+    aiQuestions: MOCK_AI_QUESTIONS,
+    documents,
+    bond,
+    checklist,
+    expenses,
+    availability,
+    shopping,
+    visitors,
+    utilities,
+    leaseTimeline,
+    houseVibe,
+    maintenanceHistory,
+    gallery,
+    agreement,
+    announcements,
+    propertyHealth,
+  };
+
+  const flatFeatureActions = {
+    onBack: closeSubScreen,
+    onMarkNotificationRead: (id: string) => {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+      );
+    },
+    onMarkAllNotificationsRead: () => {
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      showToast("All notifications marked read");
+    },
+    onMessageFlatmate: (conversationId: string) => {
+      closeSubScreen();
+      navigateTab("messages");
+      openChat(conversationId);
+    },
+    onViewProfile: (name: string) => showToast(`Viewing ${name}'s profile`),
+    onOpenBills: () => openSubScreen("bills"),
+    onAcceptRule: (id: string) => {
+      setHouseRules((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, accepted: true } : r)),
+      );
+      showToast("Rule accepted");
+    },
+    onAcceptAllRules: () => {
+      setHouseRules((prev) => prev.map((r) => ({ ...r, accepted: true })));
+      showToast("All rules accepted");
+    },
+    onAddRule: (text: string, category: RuleCategory) => {
+      const rule: HouseRule = {
+        id: nextId(),
+        text,
+        category,
+        accepted: false,
+      };
+      setHouseRules((prev) => [...prev, rule]);
+      showToast("Rule added");
+    },
+    onCompleteChore: (id: string) => {
+      setChores((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, status: "completed" as const } : c)),
+      );
+      showToast("Chore marked complete");
+    },
+    onSwapChore: (id: string) => showToast("Swap request sent to flatmates"),
+    onMarkBillPaid: (id: string) => {
+      setBills((prev) =>
+        prev.map((b) =>
+          b.id === id
+            ? {
+                ...b,
+                status: "paid" as const,
+                paid_by: FLATMATE_USER.name,
+                owes: b.owes.filter((n) => n !== FLATMATE_USER.name),
+              }
+            : b,
+        ),
+      );
+      showToast("Your share marked as paid");
+    },
+    onAddBill: () => {
+      setBills((prev) => [
+        {
+          id: nextId(),
+          type: "cleaning",
+          label: "Cleaning Supplies",
+          total_amount: 36,
+          due_date: "25 Jun 2026",
+          split_amount: 12,
+          paid_by: "",
+          owes: [FLATMATE_USER.name, "Sarah Lee", "James Patel"],
+          status: "pending",
+        },
+        ...prev,
+      ]);
+      showToast("Mock bill added");
+    },
+    onViewBillSplit: (id: string) => {
+      const bill = bills.find((b) => b.id === id);
+      if (bill) showToast(`Split: ${formatCurrency(bill.split_amount)} each`);
+    },
+    onAddCalendarEvent: (event: CalendarEvent) => {
+      setCalendarEvents((prev) => [...prev, event]);
+      showToast("Event added to calendar");
+    },
+    onCallContact: (name: string, phone: string) =>
+      showToast(`Calling ${name} at ${phone} (mock)`),
+    onMessageContact: (name: string) => showToast(`Message sent to ${name} (mock)`),
+    onAddMaintenance: (title: string) => {
+      setMaintenance((prev) => [
+        {
+          id: nextId(),
+          title,
+          property: joinedProperty?.name ?? "My Flat",
+          submitted_date: "13 Jun 2026",
+          contractor: "Pending assignment",
+          status: "submitted",
+          expected_completion: "TBC",
+          priority: "medium",
+          timeline: ["submitted"],
+        },
+        ...prev,
+      ]);
+      showToast("Maintenance request submitted");
+    },
+    onMessageContractor: (conversationId: string) => {
+      closeSubScreen();
+      navigateTab("messages");
+      openChat(conversationId);
+    },
+    onResolveMaintenance: (id: string) => {
+      setMaintenance((prev) =>
+        prev.map((m) =>
+          m.id === id
+            ? {
+                ...m,
+                status: "completed" as const,
+                timeline: [
+                  "submitted",
+                  "reviewed",
+                  "assigned",
+                  "in_progress",
+                  "completed",
+                ],
+              }
+            : m,
+        ),
+      );
+      showToast("Maintenance marked resolved");
+    },
+    onLikePost: (id: string) => {
+      setFeedPosts((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? {
+                ...p,
+                liked: !p.liked,
+                likes: p.liked ? p.likes - 1 : p.likes + 1,
+              }
+            : p,
+        ),
+      );
+    },
+    onCommentPost: (id: string) => showToast("Comment added (mock)"),
+    onAddFeedPost: (content: string) => {
+      const post: FeedPost = {
+        id: nextId(),
+        author: FLATMATE_USER.name,
+        role: "Flatmate",
+        timestamp: "Just now",
+        content,
+        type: "chore",
+        likes: 0,
+        liked: false,
+      };
+      setFeedPosts((prev) => [post, ...prev]);
+      showToast("Update posted");
+    },
+    onDocumentAction: (action: string, name: string) =>
+      showToast(`${action} ${name} (mock)`),
+    onToggleChecklist: (id: string) => {
+      setChecklist((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, completed: !item.completed } : item,
+        ),
+      );
+      showToast("Checklist updated");
+    },
+    onSetAvailability: (id: string, status: AvailabilityStatus) => {
+      const notes: Record<AvailabilityStatus, string> = {
+        home: "Available",
+        away: "Away until Sunday",
+        working: "Working nights",
+        vacation: "On vacation",
+      };
+      setAvailability((prev) =>
+        prev.map((a) =>
+          a.id === id ? { ...a, status, note: notes[status] } : a,
+        ),
+      );
+      showToast("Availability updated");
+    },
+    onAddShoppingItem: (name: string) => {
+      setShopping((prev) => [
+        ...prev,
+        { id: nextId(), name, purchased: false },
+      ]);
+      showToast("Item added to list");
+    },
+    onRemoveShoppingItem: (id: string) => {
+      setShopping((prev) => prev.filter((s) => s.id !== id));
+      showToast("Item removed");
+    },
+    onToggleShoppingPurchased: (id: string) => {
+      setShopping((prev) =>
+        prev.map((s) =>
+          s.id === id
+            ? {
+                ...s,
+                purchased: !s.purchased,
+                purchaser: !s.purchased ? FLATMATE_USER.name : undefined,
+              }
+            : s,
+        ),
+      );
+      showToast("Shopping list updated");
+    },
+    onAddVisitor: (name: string, overnight: boolean) => {
+      setVisitors((prev) => [
+        {
+          id: nextId(),
+          visitor_name: name,
+          host: FLATMATE_USER.name,
+          date: "20 Jun 2026",
+          overnight,
+          approved: false,
+          upcoming: true,
+        },
+        ...prev,
+      ]);
+      showToast("Visitor registered");
+    },
+    onApproveVisitor: (id: string) => {
+      setVisitors((prev) =>
+        prev.map((v) => (v.id === id ? { ...v, approved: true } : v)),
+      );
+      showToast("Visitor approved");
+    },
+    onAcceptAgreement: () => {
+      setAgreement((prev) => ({
+        ...prev,
+        user_accepted: true,
+        acceptances: prev.acceptances.map((a) =>
+          a.name === FLATMATE_USER.name
+            ? { ...a, accepted: true, date: "13 Jun 2026" }
+            : a,
+        ),
+      }));
+      showToast("Agreement accepted");
+    },
+    onMarkAnnouncementRead: (id: string) => {
+      setAnnouncements((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, read: true } : a)),
+      );
+    },
+    onPinAnnouncement: (id: string) => {
+      setAnnouncements((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, pinned: !a.pinned } : a)),
+      );
+      showToast("Announcement updated");
+    },
+  };
+
+  function formatCurrency(n: number) {
+    return `$${n.toLocaleString("en-NZ")}`;
+  }
 
   const activeConversation = conversations.find((c) => c.id === activeChatId);
 
@@ -314,6 +676,18 @@ function HomeHubApp() {
       );
     }
 
+    if (subScreen) {
+      return (
+        <FlatFeatureRouter
+          screen={subScreen}
+          role={demoRole}
+          state={flatFeatureState}
+          actions={flatFeatureActions}
+          currentUserId={CURRENT_USER_ID}
+        />
+      );
+    }
+
     if (demoRole === "flatmate") {
       switch (tab) {
         case "home":
@@ -322,10 +696,13 @@ function HomeHubApp() {
               role="flatmate"
               rentDue={flatmateRentDue}
               nextRentDate={nextRentDate}
+              nextRentAmount={nextRentAmount}
               flatName={joinedProperty?.name ?? null}
-              maintenanceCount={MAINTENANCE_COUNT}
+              maintenanceCount={maintenanceActive}
               unreadMessages={unreadMessages}
-              upcomingBills={upcomingBills}
+              unreadNotifications={unreadNotifications}
+              billsDueCount={billsDueCount}
+              choresPending={choresPending}
               monthlyIncome={0}
               propertyCount={0}
               pendingRequests={0}
@@ -333,6 +710,11 @@ function HomeHubApp() {
               onMyFlat={() => navigateTab("myflat")}
               onRent={() => navigateTab("rent")}
               onMessages={() => navigateTab("messages")}
+              onNotifications={() => openSubScreen("notifications")}
+              onChores={() => openSubScreen("chores")}
+              onBills={() => openSubScreen("bills")}
+              onCalendar={() => openSubScreen("calendar")}
+              onAI={() => openSubScreen("ai-assistant")}
               onProperties={() => {}}
               onRequests={() => {}}
             />
@@ -346,9 +728,23 @@ function HomeHubApp() {
               allProperties={properties}
               joinedProperty={joinedProperty}
               myJoinRequests={myJoinRequests}
+              nextRentDate={nextRentDate}
+              nextRentAmount={nextRentAmount}
+              billsDueCount={billsDueCount}
+              choresPending={choresPending}
+              maintenanceActive={maintenanceActive}
+              documentCount={documentCount}
+              unreadAnnouncements={unreadAnnouncements}
+              shoppingPending={shoppingPending}
+              upcomingVisitors={upcomingVisitors}
               onRequestJoin={requestJoin}
               onCancelRequest={cancelJoinRequest}
               onLeaveFlat={leaveFlat}
+              onNavigateFeature={openSubScreen}
+              onMessageFlatmates={() => {
+                navigateTab("messages");
+                openChat("c2");
+              }}
             />
           );
         case "rent":
@@ -361,11 +757,7 @@ function HomeHubApp() {
           );
         case "messages":
           return (
-            <MessagesScreen
-              conversations={conversations}
-              onOpenChat={openChat}
-              isTab
-            />
+            <MessagesScreen conversations={conversations} onOpenChat={openChat} isTab />
           );
         case "profile":
           return (
@@ -374,9 +766,11 @@ function HomeHubApp() {
               propertyCount={properties.length}
               paymentCount={rentPayments.length}
               requestCount={joinRequests.length}
+              unreadNotifications={unreadNotifications}
               isDark={isDark}
               onToggleTheme={toggleTheme}
               onSwitchRole={switchRole}
+              onNotifications={() => openSubScreen("notifications")}
             />
           );
         default:
@@ -391,17 +785,25 @@ function HomeHubApp() {
             role="landlord"
             rentDue={0}
             nextRentDate={null}
+            nextRentAmount={0}
             flatName={null}
-            maintenanceCount={MAINTENANCE_COUNT}
+            maintenanceCount={maintenanceActive}
             unreadMessages={unreadMessages}
-            upcomingBills={0}
+            unreadNotifications={0}
+            billsDueCount={0}
+            choresPending={0}
             monthlyIncome={monthlyIncome}
             propertyCount={properties.length}
             pendingRequests={pendingLandlordRequests.length}
             outstandingRent={rentSections.current_due_total + rentSections.overdue_total}
             onMyFlat={() => {}}
             onRent={() => navigateTab("rent")}
-            onMessages={() => navigateTab("messages")}
+            onMessages={() => {}}
+            onNotifications={() => {}}
+            onChores={() => {}}
+            onBills={() => {}}
+            onCalendar={() => {}}
+            onAI={() => {}}
             onProperties={() => navigateTab("properties")}
             onRequests={() => navigateTab("requests")}
           />
@@ -449,15 +851,19 @@ function HomeHubApp() {
             propertyCount={properties.length}
             paymentCount={rentPayments.length}
             requestCount={joinRequests.length}
+            unreadNotifications={0}
             isDark={isDark}
             onToggleTheme={toggleTheme}
             onSwitchRole={switchRole}
+            onNotifications={() => {}}
           />
         );
       default:
         return null;
     }
   };
+
+  const hideNav = overlay !== null || subScreen !== null;
 
   return (
     <View style={[styles.page, { backgroundColor: theme.bg }]}>
@@ -471,7 +877,7 @@ function HomeHubApp() {
           </View>
         )}
 
-        {!overlay && (
+        {!hideNav && (
           <BottomNavigation
             role={demoRole}
             active={tab}
@@ -490,11 +896,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     ...(Platform.OS === "web" ? { minHeight: "100vh" as unknown as number } : {}),
   },
-  phone: {
-    flex: 1,
-    width: "100%",
-    maxWidth: PHONE_MAX,
-  },
+  phone: { flex: 1, width: "100%", maxWidth: PHONE_MAX },
   toast: {
     position: "absolute",
     bottom: 90,

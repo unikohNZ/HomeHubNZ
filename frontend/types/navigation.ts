@@ -1,0 +1,28 @@
+export type SubScreen =
+  | "notifications"
+  | "flatmates"
+  | "house-rules"
+  | "chores"
+  | "bills"
+  | "calendar"
+  | "emergency"
+  | "maintenance"
+  | "flat-feed"
+  | "ai-assistant"
+  | "documents"
+  | "bond-tracker"
+  | "checklists"
+  | "expenses"
+  | "availability"
+  | "shopping-list"
+  | "visitors"
+  | "utility-analytics"
+  | "lease-timeline"
+  | "house-vibe"
+  | "maintenance-history"
+  | "gallery"
+  | "agreement"
+  | "announcements"
+  | "property-health";
+
+export type OverlayScreen = "chat" | null;

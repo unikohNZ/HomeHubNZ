@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { NotificationBell } from "../components/NotificationBell";
 import { ScreenShell } from "../components/ScreenShell";
 import { UserAvatar } from "../components/UserAvatar";
 import { useTheme } from "../context/ThemeContext";
@@ -10,9 +11,11 @@ interface ProfileScreenProps {
   propertyCount: number;
   paymentCount: number;
   requestCount: number;
+  unreadNotifications: number;
   isDark: boolean;
   onToggleTheme: () => void;
   onSwitchRole: (role: DemoRole) => void;
+  onNotifications: () => void;
 }
 
 export function ProfileScreen({
@@ -20,15 +23,25 @@ export function ProfileScreen({
   propertyCount,
   paymentCount,
   requestCount,
+  unreadNotifications,
   isDark,
   onToggleTheme,
   onSwitchRole,
+  onNotifications,
 }: ProfileScreenProps) {
   const { theme } = useTheme();
   const user = role === "landlord" ? LANDLORD_USER : FLATMATE_USER;
 
   return (
-    <ScreenShell title="Profile" subtitle="Account & preferences">
+    <ScreenShell
+      title="Profile"
+      subtitle="Account & preferences"
+      headerRight={
+        role === "flatmate" ? (
+          <NotificationBell count={unreadNotifications} onPress={onNotifications} />
+        ) : undefined
+      }
+    >
       <View style={[styles.profile, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <UserAvatar name={user.name} color={user.avatar_color} size={72} />
         <View style={styles.profileInfo}>
