@@ -6,9 +6,16 @@
     "orientation": "portrait",
     "scheme": "homehub",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#04142D",
+    "icon": "./assets/branding/homehub-app-icon.png",
+    "backgroundColor": "#4F8CFF",
+    "splash": {
+      "image": "./assets/branding/homehub-app-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#4F8CFF"
+    },
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "favicon": "./assets/branding/homehub-app-icon.png"
     },
     "ios": {
       "supportsTablet": true,
@@ -17,7 +24,8 @@
     "android": {
       "package": "nz.homehub.app",
       "adaptiveIcon": {
-        "backgroundColor": "#04142D"
+        "foregroundImage": "./assets/branding/homehub-app-icon.png",
+        "backgroundColor": "#FFD84D"
       }
     },
     "plugins": [

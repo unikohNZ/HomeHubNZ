@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { BrandLogo } from "../components/BrandLogo";
 import { ScreenShell } from "../components/ScreenShell";
 import { UserAvatar } from "../components/UserAvatar";
 import { Badge } from "../components/ui/Badge";
 import { SectionHeader } from "../components/ui/SectionHeader";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../contexts/AuthContext";
+import { BRAND_TAGLINE } from "../constants/branding";
 import { FLATMATE_USER, LANDLORD_USER } from "../data/mockUsers";
 import { DemoRole, SubScreen } from "../types";
 import { radius, spacing, touchTarget } from "../constants/design";
@@ -23,7 +26,6 @@ interface ProfileScreenProps {
   onToggleTheme: () => void;
   onSwitchRole: (role: DemoRole) => void;
   onNavigate: (screen: SubScreen) => void;
-  onSignOut: () => void;
 }
 
 export function ProfileScreen({
@@ -36,23 +38,24 @@ export function ProfileScreen({
   onToggleTheme,
   onSwitchRole,
   onNavigate,
-  onSignOut,
 }: ProfileScreenProps) {
   const { theme } = useTheme();
-  const user = role === "landlord" ? LANDLORD_USER : FLATMATE_USER;
+  const { user: authUser, logout } = useAuth();
+  const user = authUser ?? (role === "landlord" ? LANDLORD_USER : FLATMATE_USER);
   const [showSignOutModal, setShowSignOutModal] = useState(false);
 
   const menuItems: { icon: string; label: string; screen: SubScreen; badge?: number }[] = [
     { icon: "🔔", label: "Notifications", screen: "notifications", badge: unreadNotifications },
+    { icon: "ℹ️", label: "About HomeHub NZ", screen: "about" },
     { icon: "📄", label: "Documents", screen: "documents" },
     { icon: "🆘", label: "Emergency Contacts", screen: "emergency-hub" },
     { icon: "📋", label: "House Rules", screen: "house-rules" },
     { icon: "🔒", label: "Privacy", screen: "agreement" },
   ];
 
-  const confirmSignOut = () => {
+  const confirmSignOut = async () => {
     setShowSignOutModal(false);
-    onSignOut();
+    await logout();
   };
 
   return (
@@ -62,6 +65,12 @@ export function ProfileScreen({
         subtitle="Account & preferences"
         bottomPadding={TAB_BAR_CLEARANCE}
       >
+        <View style={[styles.brandBlock, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <BrandLogo variant="icon" size="medium" />
+          <Text style={[styles.brandName, { color: theme.text }]}>HomeHub NZ</Text>
+          <Text style={[styles.version, { color: theme.textMuted }]}>v1.0.0</Text>
+        </View>
+
         <View style={[styles.profile, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <UserAvatar name={user.name} color={user.avatar_color} size={72} />
           <View style={styles.profileInfo}>
@@ -145,7 +154,7 @@ export function ProfileScreen({
         </View>
 
         <Text style={[styles.footer, { color: theme.textMuted }]}>
-          HomeHub NZ v2.0 · Expo SDK 56 · Made in Aotearoa
+          {BRAND_TAGLINE}
         </Text>
 
         <Pressable
@@ -174,7 +183,8 @@ export function ProfileScreen({
             accessibilityLabel="Dismiss sign out dialog"
           />
           <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Sign Out</Text>
+            <Text style={[styles.modalMessage, { color: theme.textSecondary }]}>
               Are you sure you want to sign out?
             </Text>
             <View style={styles.modalActions}>
@@ -206,6 +216,20 @@ function StatBox({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  brandBlock: {
+    alignItems: "center",
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    padding: spacing.xl,
+    marginBottom: spacing.lg,
+  },
+  brandName: {
+    fontSize: 20,
+    fontWeight: "800",
+    marginTop: spacing.md,
+    letterSpacing: -0.3,
+  },
+  version: { fontSize: 13, fontWeight: "600", marginTop: 4 },
   profile: {
     flexDirection: "row",
     alignItems: "center",
@@ -269,10 +293,15 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   modalTitle: {
-    fontSize: 17,
-    fontWeight: "700",
+    fontSize: 20,
+    fontWeight: "800",
     textAlign: "center",
-    lineHeight: 24,
+    marginBottom: spacing.sm,
+  },
+  modalMessage: {
+    fontSize: 15,
+    textAlign: "center",
+    lineHeight: 22,
     marginBottom: spacing.xl,
   },
   modalActions: { flexDirection: "row", gap: spacing.md },

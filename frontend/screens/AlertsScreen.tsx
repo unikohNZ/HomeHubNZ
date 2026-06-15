@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { SubScreenLayout } from "../components/SubScreenLayout";
 import { Badge } from "../components/ui/Badge";
 import { EmptyState } from "../components/ui/EmptyState";
 import { SegmentTabs } from "../components/ui/SegmentTabs";
 import { useTheme } from "../context/ThemeContext";
+import { BRAND_ASSETS } from "../constants/branding";
 import { MOCK_ALERTS } from "../data/mockAlerts";
 import { AlertCategory, AppAlert } from "../data/mockAlerts";
 import { radius, spacing } from "../constants/design";
@@ -53,7 +54,16 @@ export function AlertsScreen({ onBack, onAction }: AlertsScreenProps) {
             style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}
           >
             <View style={styles.top}>
-              <Text style={[styles.title, { color: theme.text }]}>{alert.title}</Text>
+              <View style={styles.titleRow}>
+                {alert.category === "emergency" && (
+                  <Image
+                    source={BRAND_ASSETS.icon}
+                    style={styles.mascot}
+                    resizeMode="cover"
+                  />
+                )}
+                <Text style={[styles.title, { color: theme.text }]}>{alert.title}</Text>
+              </View>
               <Badge label={alert.priority} tone={priorityTone(alert.priority)} />
             </View>
             <Text style={[styles.msg, { color: theme.textSecondary }]}>{alert.message}</Text>
@@ -76,6 +86,8 @@ export function AlertsScreen({ onBack, onAction }: AlertsScreenProps) {
 const styles = StyleSheet.create({
   card: { borderRadius: radius.xl, borderWidth: 1, padding: spacing.lg, marginBottom: spacing.md },
   top: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.sm },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, flex: 1 },
+  mascot: { width: 28, height: 28, borderRadius: 8 },
   title: { fontSize: 16, fontWeight: "800", flex: 1 },
   msg: { fontSize: 14, lineHeight: 20, marginTop: spacing.sm },
   time: { fontSize: 12, marginTop: spacing.sm },

@@ -4,9 +4,10 @@ import { useTheme } from "../context/ThemeContext";
 import { spacing, typography } from "../constants/design";
 
 interface ScreenShellProps {
-  title: string;
+  title?: string;
   subtitle?: string;
   children: ReactNode;
+  headerContent?: ReactNode;
   headerRight?: ReactNode;
   refreshing?: boolean;
   onRefresh?: () => void;
@@ -18,6 +19,7 @@ export function ScreenShell({
   title,
   subtitle,
   children,
+  headerContent,
   headerRight,
   refreshing,
   onRefresh,
@@ -45,12 +47,16 @@ export function ScreenShell({
       }
     >
       <View style={styles.header}>
-        <View style={styles.headerText}>
-          <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
-          {subtitle && (
-            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
-          )}
-        </View>
+        {headerContent ?? (
+          <View style={styles.headerText}>
+            {title ? (
+              <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
+            ) : null}
+            {subtitle && (
+              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
+            )}
+          </View>
+        )}
         {headerRight}
       </View>
       {children}

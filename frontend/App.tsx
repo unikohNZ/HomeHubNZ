@@ -1,9 +1,13 @@
-import { useMemo, useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { BottomNavigation } from "./components/BottomNavigation";
+import { BrandSplash } from "./components/BrandSplash";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
+import { AuthProvider, useAuth, useDemoRole } from "./contexts/AuthContext";
+import { AuthFlow } from "./navigation/AuthFlow";
 import { CURRENT_EMERGENCY_STATUS } from "./data/mockAlerts";
 import { DEMO_APPROVED_JOIN } from "./data/demoJoin";
 import { EMPTY_PROPERTY_FORM } from "./data/formDefaults";
@@ -40,7 +44,6 @@ import { INITIAL_JOIN_REQUESTS, MOCK_CHAT_MESSAGES, MOCK_CONVERSATIONS } from ".
 import { MOCK_RENT_PAYMENTS } from "./data/mockRent";
 import { FLATMATE_USER } from "./data/mockUsers";
 import { usePropertiesData } from "./hooks/usePropertiesData";
-import { tokenStorage } from "./src/services/tokenStorage";
 import { ChatScreen } from "./screens/ChatScreen";
 import { DashboardScreen } from "./screens/DashboardScreen";
 import { FlatFeatureRouter } from "./screens/FlatFeatureRouter";
@@ -68,15 +71,36 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <HomeHubApp />
+        <AuthProvider>
+          <AppGate />
+        </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );
 }
 
+function AppGate() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <BrandSplash />;
+  }
+
+  if (!isAuthenticated) {
+    return <AuthFlow />;
+  }
+
+  return (
+    <ProtectedRoute>
+      <HomeHubApp />
+    </ProtectedRoute>
+  );
+}
+
 function HomeHubApp() {
   const { theme, isDark, toggleTheme } = useTheme();
-  const [demoRole, setDemoRole] = useState<DemoRole>("flatmate");
+  const { user, switchRole: authSwitchRole } = useAuth();
+  const demoRole = useDemoRole();
   const [tab, setTab] = useState<TabId>("home");
   const [subScreen, setSubScreen] = useState<SubScreen | null>(null);
   const [overlay, setOverlay] = useState<OverlayScreen>(null);
@@ -133,6 +157,13 @@ function HomeHubApp() {
   const [form, setForm] = useState<PropertyFormData>(EMPTY_PROPERTY_FORM);
   const [leftFlat, setLeftFlat] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    setTab("home");
+    setSubScreen(null);
+    setOverlay(null);
+    setActiveChatId(null);
+  }, [user?.id, user?.role]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -390,23 +421,9 @@ function HomeHubApp() {
     showToast("You have left the flat");
   };
 
-  const switchRole = (role: DemoRole) => {
-    setDemoRole(role);
-    setTab("home");
-    setSubScreen(null);
-    setOverlay(null);
-    setActiveChatId(null);
+  const switchRole = async (role: DemoRole) => {
+    await authSwitchRole(role);
     showToast(`Switched to ${role} demo`);
-  };
-
-  const signOut = async () => {
-    await tokenStorage.clearTokens();
-    setDemoRole("flatmate");
-    setTab("home");
-    setSubScreen(null);
-    setOverlay(null);
-    setActiveChatId(null);
-    showToast("Signed out successfully");
   };
 
   const navigateTab = (t: TabId) => {
@@ -741,7 +758,6 @@ function HomeHubApp() {
       onToggleTheme={toggleTheme}
       onSwitchRole={switchRole}
       onNavigate={openSubScreen}
-      onSignOut={signOut}
     />
   );
 
@@ -1009,6 +1025,7 @@ function HomeHubApp() {
 }
 
 const styles = StyleSheet.create({
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
   page: {
     flex: 1,
     alignItems: "center",

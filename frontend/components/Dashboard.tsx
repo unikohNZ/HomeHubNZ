@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { BrandLogo } from "./BrandLogo";
 import { useTheme } from "../context/ThemeContext";
 import { MOCK_UPCOMING_EVENTS } from "../data/mockAlerts";
-import { FLATMATE_USER } from "../data/mockUsers";
 import { AppNotification } from "../types/flat";
 import { formatCurrency } from "../utils/format";
 import { Card } from "./Card";
@@ -9,13 +9,6 @@ import { AlertStatusBanner, AlertLevel } from "./ui/AlertStatusBanner";
 import { Badge } from "./ui/Badge";
 import { SectionHeader } from "./ui/SectionHeader";
 import { radius, spacing } from "../constants/design";
-
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good Morning";
-  if (hour < 17) return "Good Afternoon";
-  return "Good Evening";
-}
 
 interface FlatmateDashboardProps {
   rentDue: number;
@@ -67,9 +60,6 @@ export function FlatmateDashboard({
   return (
     <>
       <Card elevated style={{ borderColor: theme.primary + "44" }}>
-        <Text style={[styles.greet, { color: theme.textSecondary }]}>
-          {getGreeting()}, {FLATMATE_USER.name.split(" ")[0]} 👋
-        </Text>
         <Text style={[styles.flatLabel, { color: theme.textMuted }]}>Current Flat</Text>
         <Text style={[styles.flatName, { color: theme.text }]}>
           {flatName ?? "Not joined yet"}
@@ -196,7 +186,12 @@ export function LandlordDashboard({
   return (
     <>
       <Card elevated>
-        <Text style={[styles.greet, { color: theme.textSecondary }]}>Landlord Portal</Text>
+        <View style={styles.landlordBrandRow}>
+          <BrandLogo variant="light" size="small" />
+          <Text style={[styles.landlordPortal, { color: theme.textSecondary }]}>
+            Landlord Portal
+          </Text>
+        </View>
         <Text style={[styles.landlordIncome, { color: theme.text }]}>
           {formatCurrency(monthlyIncome)}
         </Text>
@@ -287,7 +282,6 @@ function PerfRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  greet: { fontSize: 14, fontWeight: "600", marginBottom: spacing.sm },
   flatLabel: { fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },
   flatName: { fontSize: 22, fontWeight: "800", marginTop: 4 },
   rentRow: { flexDirection: "row", justifyContent: "space-between", marginTop: spacing.lg },
@@ -338,6 +332,13 @@ const styles = StyleSheet.create({
   notifMsg: { fontSize: 12, marginTop: 2 },
   emptyNote: { borderRadius: radius.lg, borderWidth: 1, padding: spacing.xl, alignItems: "center" },
   emptyText: { fontSize: 14, fontWeight: "600" },
+  landlordBrandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  landlordPortal: { fontSize: 14, fontWeight: "700" },
   landlordIncome: { fontSize: 36, fontWeight: "800", marginTop: 4 },
   landlordSub: { fontSize: 13, marginTop: 4 },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, marginBottom: spacing.md },

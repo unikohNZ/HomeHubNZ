@@ -1,3 +1,4 @@
+import { AboutScreen } from "./AboutScreen";
 import { AlertsScreen } from "./AlertsScreen";
 import { EmergencyHubScreen } from "./EmergencyHubScreen";
 import { AIAssistantScreen } from "./AIAssistantScreen";
@@ -141,6 +142,8 @@ export function FlatFeatureRouter({
   currentUserId,
 }: FlatFeatureRouterProps) {
   switch (screen) {
+    case "about":
+      return <AboutScreen onBack={actions.onBack} />;
     case "notifications":
       return (
         <NotificationsScreen

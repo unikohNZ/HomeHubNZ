@@ -1,4 +1,5 @@
 export type SubScreen =
+  | "about"
   | "profile"
   | "notifications"
   | "alerts"

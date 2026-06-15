@@ -1,65 +1,36 @@
-import { Platform } from "react-native";
-
-const ACCESS_KEY = "homehub_access_token";
-const REFRESH_KEY = "homehub_refresh_token";
-
-const isWeb = Platform.OS === "web";
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from "./api";
+import { storage } from "../../storage/storage";
 
 let memoryAccess: string | null = null;
 let memoryRefresh: string | null = null;
 
-function webGet(key: string): string | null {
-  try {
-    return typeof localStorage !== "undefined" ? localStorage.getItem(key) : null;
-  } catch {
-    return null;
-  }
-}
-
-function webSet(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // ignore (private mode)
-  }
-}
-
-function webRemove(key: string): void {
-  try {
-    localStorage.removeItem(key);
-  } catch {
-    // ignore
-  }
-}
-
 export const tokenStorage = {
   async getAccessToken(): Promise<string | null> {
     if (memoryAccess) return memoryAccess;
-    if (isWeb) return webGet(ACCESS_KEY);
-    return memoryAccess;
+    const stored = await storage.getItem(ACCESS_TOKEN_KEY);
+    if (stored) memoryAccess = stored;
+    return stored;
   },
 
   async getRefreshToken(): Promise<string | null> {
     if (memoryRefresh) return memoryRefresh;
-    if (isWeb) return webGet(REFRESH_KEY);
-    return memoryRefresh;
+    const stored = await storage.getItem(REFRESH_TOKEN_KEY);
+    if (stored) memoryRefresh = stored;
+    return stored;
   },
 
   async setTokens(access: string, refresh: string): Promise<void> {
     memoryAccess = access;
     memoryRefresh = refresh;
-    if (isWeb) {
-      webSet(ACCESS_KEY, access);
-      webSet(REFRESH_KEY, refresh);
-    }
+    await storage.setItem(ACCESS_TOKEN_KEY, access);
+    await storage.setItem(REFRESH_TOKEN_KEY, refresh);
+    await storage.saveToken(access);
   },
 
   async clearTokens(): Promise<void> {
     memoryAccess = null;
     memoryRefresh = null;
-    if (isWeb) {
-      webRemove(ACCESS_KEY);
-      webRemove(REFRESH_KEY);
-    }
+    await storage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY]);
+    await storage.removeToken();
   },
 };

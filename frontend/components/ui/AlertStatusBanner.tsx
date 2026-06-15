@@ -1,5 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../../context/ThemeContext";
+import { BRAND_ASSETS } from "../../constants/branding";
 import { radius, spacing } from "../../constants/design";
 
 export type AlertLevel = "normal" | "watch" | "emergency";
@@ -11,11 +12,26 @@ interface AlertStatusBannerProps {
   onPress?: () => void;
 }
 
-const CONFIG: Record<AlertLevel, { icon: string; label: string }> = {
-  normal: { icon: "✅", label: "Normal" },
-  watch: { icon: "⚠️", label: "Watch" },
-  emergency: { icon: "🚨", label: "Emergency" },
+const CONFIG: Record<AlertLevel, { label: string; useMascot: boolean }> = {
+  normal: { label: "Normal", useMascot: false },
+  watch: { label: "Watch", useMascot: true },
+  emergency: { label: "Emergency", useMascot: true },
 };
+
+function AlertIcon({ level }: { level: AlertLevel }) {
+  const cfg = CONFIG[level];
+  if (cfg.useMascot) {
+    return (
+      <Image
+        source={BRAND_ASSETS.icon}
+        style={styles.mascot}
+        resizeMode="cover"
+        accessibilityLabel="HomeHub emergency alert"
+      />
+    );
+  }
+  return <Text style={styles.icon}>✅</Text>;
+}
 
 export function AlertStatusBanner({ level, title, subtitle, onPress }: AlertStatusBannerProps) {
   const { theme } = useTheme();
@@ -28,7 +44,7 @@ export function AlertStatusBanner({ level, title, subtitle, onPress }: AlertStat
 
   const content = (
     <View style={[styles.banner, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-      <Text style={styles.icon}>{cfg.icon}</Text>
+      <AlertIcon level={level} />
       <View style={styles.flex}>
         <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
         {subtitle && (
@@ -58,6 +74,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   icon: { fontSize: 24 },
+  mascot: { width: 36, height: 36, borderRadius: 10 },
   flex: { flex: 1 },
   title: { fontSize: 15, fontWeight: "800" },
   sub: { fontSize: 13, marginTop: 2 },

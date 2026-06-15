@@ -1,4 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { BrandHeader } from "../components/BrandHeader";
+import { BrandLogo } from "../components/BrandLogo";
 import { FlatmateDashboard, LandlordDashboard } from "../components/Dashboard";
 import { NotificationBell } from "../components/NotificationBell";
 import { ScreenShell } from "../components/ScreenShell";
@@ -9,6 +11,13 @@ import { AppNotification } from "../types/flat";
 import { DemoRole } from "../types";
 import { AlertLevel } from "../components/ui/AlertStatusBanner";
 import { spacing } from "../constants/design";
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good Morning";
+  if (hour < 17) return "Good Afternoon";
+  return "Good Evening";
+}
 
 interface DashboardScreenProps {
   role: DemoRole;
@@ -53,7 +62,6 @@ export function DashboardScreen({
   alertLevel,
   alertTitle,
   occupancyRate,
-  unreadMessages,
   unreadNotifications,
   notifications,
   monthlyIncome,
@@ -79,11 +87,29 @@ export function DashboardScreen({
 }: DashboardScreenProps) {
   const { theme } = useTheme();
   const user = role === "landlord" ? LANDLORD_USER : FLATMATE_USER;
+  const firstName = user.name.split(" ")[0];
 
   return (
     <ScreenShell
-      title="HomeHub NZ"
-      subtitle={role === "flatmate" ? "Kia ora — your household hub" : "Landlord property portal"}
+      headerContent={
+        role === "flatmate" ? (
+          <BrandHeader
+            variant="icon"
+            subtitle={`${getGreeting()}, ${firstName} 👋`}
+            badgeCount={unreadNotifications}
+          />
+        ) : (
+          <View style={styles.landlordHeader}>
+            <BrandLogo variant="light" size="medium" />
+            <View style={styles.landlordText}>
+              <Text style={[styles.landlordTitle, { color: theme.text }]}>HomeHub NZ</Text>
+              <Text style={[styles.landlordSub, { color: theme.textSecondary }]}>
+                Landlord property portal
+              </Text>
+            </View>
+          </View>
+        )
+      }
       refreshing={refreshing}
       onRefresh={onRefresh}
       headerRight={
@@ -94,9 +120,6 @@ export function DashboardScreen({
           {role === "flatmate" && (
             <NotificationBell count={unreadNotifications} onPress={onNotifications} />
           )}
-          <View style={[styles.nzBadge, { backgroundColor: theme.accentMuted }]}>
-            <Text style={[styles.nzText, { color: theme.accent }]}>NZ</Text>
-          </View>
         </View>
       }
     >
@@ -138,7 +161,14 @@ export function DashboardScreen({
 }
 
 const styles = StyleSheet.create({
-  headerRight: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  nzBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
-  nzText: { fontSize: 12, fontWeight: "800" },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  landlordHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    flex: 1,
+  },
+  landlordText: { flex: 1 },
+  landlordTitle: { fontSize: 22, fontWeight: "800", letterSpacing: -0.4 },
+  landlordSub: { fontSize: 14, marginTop: 2, fontWeight: "500" },
 });
