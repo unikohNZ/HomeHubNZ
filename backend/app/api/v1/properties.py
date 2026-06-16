@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -16,6 +16,7 @@ from app.schemas.property import (
     PropertyUpdate,
 )
 from app.services.property_service import PropertyService
+from app.services.supabase_storage_service import storage_service
 
 router = APIRouter()
 
@@ -125,3 +126,22 @@ async def assign_flatmate(
     db: AsyncSession = Depends(get_db),
 ):
     return MessageResponse(message="Flatmate invitation sent")
+
+
+@router.post("/{property_id}/photo", response_model=PropertyResponse)
+async def upload_property_photo(
+    property_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_permissions(Permission.PROPERTY_UPDATE)),
+    db: AsyncSession = Depends(get_db),
+):
+    service = PropertyService(db)
+    content = await file.read()
+    ext = (file.filename or "photo.jpg").split(".")[-1]
+    url = await storage_service.upload_bytes(
+        content,
+        folder=f"properties/{property_id}",
+        filename=f"photo.{ext}",
+        content_type=file.content_type or f"image/{ext}",
+    )
+    return await service.update_photo(property_id, url, current_user)

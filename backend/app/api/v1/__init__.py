@@ -15,12 +15,14 @@ from app.api.v1 import (
     properties,
     rent,
     uploads,
+    users,
     webhooks,
 )
 
 api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+api_router.include_router(users.router, prefix="/users", tags=["Users"])
 api_router.include_router(profile.router, prefix="/profile", tags=["Profile"])
 api_router.include_router(properties.router, prefix="/properties", tags=["Properties"])
 api_router.include_router(join_requests.router, prefix="/join-requests", tags=["Join Requests"])

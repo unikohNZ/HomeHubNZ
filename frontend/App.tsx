@@ -52,8 +52,19 @@ import { MOCK_TENANT_PAYMENTS } from "./data/mockTenantPayments";
 import { MOCK_RENT_PAYMENTS } from "./data/mockRent";
 import { FLATMATE_USER } from "./data/mockUsers";
 import { usePropertiesData } from "./hooks/usePropertiesData";
+import {
+  useConversations,
+  useChatMessages,
+  useSendMessage,
+  useSendImageMessage,
+} from "./hooks/useMessagesData";
+import {
+  useRentPayments,
+  useTenantPayments,
+  useMarkTenantPaid,
+} from "./hooks/useRentPaymentsData";
 import { useHouseRules } from "./src/hooks/useProperties";
-import { queryClient } from "./src/lib/queryClient";
+import { queryClient, queryKeys } from "./src/lib/queryClient";
 import { ChatScreen } from "./screens/ChatScreen";
 import { DashboardScreen } from "./screens/DashboardScreen";
 import { FlatFeatureRouter } from "./screens/FlatFeatureRouter";
@@ -72,11 +83,8 @@ import { DemoRole, OverlayScreen, SubScreen, TabId } from "./types";
 import { CalendarEvent, FeedPost, HouseRule, MaintenanceStatus, RuleCategory } from "./types/flat";
 import { LandlordDocument, LandlordTenant } from "./types/landlord";
 import { AvailabilityStatus } from "./types/flatExtended";
-import { ChatMessage, Conversation } from "./types/message";
 import { Property, PropertyFormData } from "./types/property";
 import { JoinRequest } from "./types/request";
-import { TenantPayment } from "./types/tenantPayment";
-import { RentPayment } from "./types/rent";
 import { buildRentSections, getNextRentDate, getRentDaysUntil } from "./utils/rentHelpers";
 import { pickProfileImage } from "./utils/imagePicker";
 import { nextId } from "./data/formDefaults";
@@ -151,10 +159,29 @@ function HomeHubApp() {
     DEMO_APPROVED_JOIN,
     ...INITIAL_JOIN_REQUESTS,
   ]);
-  const [rentPayments] = useState<RentPayment[]>(MOCK_RENT_PAYMENTS);
-  const [tenantPayments, setTenantPayments] = useState<TenantPayment[]>(MOCK_TENANT_PAYMENTS);
-  const [conversations, setConversations] = useState<Conversation[]>(MOCK_CONVERSATIONS);
-  const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>(MOCK_CHAT_MESSAGES);
+
+  const currentUserId = user ? parseInt(user.id, 10) : undefined;
+  const conversationsQuery = useConversations();
+  const conversations = conversationsQuery.data?.data ?? MOCK_CONVERSATIONS;
+  const messagesUsingCache = conversationsQuery.data?.source === "cache";
+
+  const rentQuery = useRentPayments();
+  const rentPayments = rentQuery.data?.data ?? MOCK_RENT_PAYMENTS;
+
+  const tenantPaymentsQuery = useTenantPayments();
+  const tenantPayments = tenantPaymentsQuery.data?.data ?? MOCK_TENANT_PAYMENTS;
+
+  const activeMessagesQuery = useChatMessages(
+    activeChatId,
+    currentUserId && !Number.isNaN(currentUserId) ? currentUserId : undefined,
+  );
+  const sendMessageMutation = useSendMessage(
+    currentUserId && !Number.isNaN(currentUserId) ? currentUserId : undefined,
+  );
+  const sendImageMutation = useSendImageMessage(
+    currentUserId && !Number.isNaN(currentUserId) ? currentUserId : undefined,
+  );
+  const markPaidMutation = useMarkTenantPaid();
 
   const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
   const [houseRules, setHouseRules] = useState(MOCK_HOUSE_RULES);
@@ -204,7 +231,13 @@ function HomeHubApp() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await reloadProperties();
+    await Promise.all([
+      reloadProperties(),
+      queryClient.invalidateQueries({ queryKey: queryKeys.messages.rooms }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.rent.payments }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.rentPayments }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.profile.me }),
+    ]);
     setRefreshing(false);
   };
 
@@ -366,23 +399,21 @@ function HomeHubApp() {
     showToast(`Status updated to ${status.replace("_", " ")}`);
   };
 
-  const markTenantPaid = (id: string) => {
-    setTenantPayments((prev) => {
-      const target = prev.find((p) => p.id === id);
-      if (target) {
+  const markTenantPaid = async (id: string) => {
+    try {
+      await markPaidMutation.mutateAsync({ id, paymentDate: "2026-06-13" });
+      const payment = tenantPayments.find((p) => p.id === id);
+      if (payment) {
         setLandlordTenants((tenants) =>
           tenants.map((t) =>
-            t.id === target.tenant_id ? { ...t, rent_status: "paid" as const } : t,
+            t.id === payment.tenant_id ? { ...t, rent_status: "paid" as const } : t,
           ),
         );
       }
-      return prev.map((p) =>
-        p.id === id
-          ? { ...p, payment_date: "2026-06-13", payment_method: "Bank transfer" }
-          : p,
-      );
-    });
-    showToast("Rent marked as paid");
+      showToast("Rent marked as paid");
+    } catch {
+      showToast("Could not record payment");
+    }
   };
 
   const sendRentReminder = (id: string) => {
@@ -635,54 +666,28 @@ function HomeHubApp() {
     setActiveChatId(id);
     setOverlay("chat");
     setSubScreen(null);
-    setConversations((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, unread_count: 0 } : c)),
-    );
+    queryClient.invalidateQueries({ queryKey: queryKeys.messages.room(Number(id) || id) });
   };
 
-  const sendMessage = (content: string) => {
+  const sendMessage = async (content: string) => {
     if (!activeChatId) return;
-    const msg: ChatMessage = {
-      id: nextId(),
-      conversation_id: activeChatId,
-      sender_name: "You",
-      content,
-      created_at: new Date().toISOString(),
-      is_mine: true,
-      type: "text",
-    };
-    setChatMessages((prev) => ({
-      ...prev,
-      [activeChatId]: [...(prev[activeChatId] ?? []), msg],
-    }));
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === activeChatId ? { ...c, last_message: content, last_time: "Just now" } : c,
-      ),
-    );
+    try {
+      await sendMessageMutation.mutateAsync({ roomId: activeChatId, content });
+    } catch {
+      showToast("Could not send message");
+    }
   };
 
-  const sendImageMessage = (imageUri: string) => {
+  const sendImageMessage = async (imageUri: string) => {
     if (!activeChatId) return;
-    const msg: ChatMessage = {
-      id: nextId(),
-      conversation_id: activeChatId,
-      sender_name: "You",
-      content: "",
-      created_at: new Date().toISOString(),
-      is_mine: true,
-      type: "image",
-      image_uri: imageUri,
-    };
-    setChatMessages((prev) => ({
-      ...prev,
-      [activeChatId]: [...(prev[activeChatId] ?? []), msg],
-    }));
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === activeChatId ? { ...c, last_message: "📷 Photo", last_time: "Just now" } : c,
-      ),
-    );
+    try {
+      await sendImageMutation.mutateAsync({
+        roomId: activeChatId,
+        file: { uri: imageUri, name: "photo.jpg", type: "image/jpeg" },
+      });
+    } catch {
+      showToast("Could not send image");
+    }
   };
 
   const flatFeatureState = {
@@ -977,7 +982,7 @@ function HomeHubApp() {
       requestCount={joinRequests.length}
       unreadNotifications={unreadNotifications}
       isDark={isDark}
-      backendOffline={propertiesOffline}
+      backendOffline={propertiesOffline || messagesUsingCache}
       onRetryBackend={reloadProperties}
       onToggleTheme={toggleTheme}
       onSwitchRole={switchRole}
@@ -991,13 +996,16 @@ function HomeHubApp() {
   }
 
   const activeConversation = conversations.find((c) => c.id === activeChatId);
+  const activeChatMessages =
+    activeMessagesQuery.data?.data ??
+    (activeChatId ? (MOCK_CHAT_MESSAGES[activeChatId] ?? []) : []);
 
   const renderMainContent = () => {
     if (overlay === "chat" && activeConversation) {
       return (
         <ChatScreen
           conversation={activeConversation}
-          messages={chatMessages[activeChatId!] ?? []}
+          messages={activeChatMessages}
           onBack={() => {
             setOverlay(null);
             setActiveChatId(null);
@@ -1116,6 +1124,9 @@ function HomeHubApp() {
               onPayments={() => {}}
               onMaintenance={() => openSubScreen("maintenance")}
               onProfile={() => navigateTab("profile")}
+              userName={user?.name}
+              avatarUrl={user?.avatar_url}
+              backendOffline={propertiesOffline || messagesUsingCache}
             />
           );
         case "myflat":
@@ -1226,6 +1237,9 @@ function HomeHubApp() {
             onPayments={() => navigateTab("payments")}
             onMaintenance={() => navigateTab("maintenance")}
             onProfile={() => openSubScreen("profile")}
+            userName={user?.name}
+            avatarUrl={user?.avatar_url}
+            backendOffline={propertiesOffline || messagesUsingCache}
           />
         );
       case "properties":

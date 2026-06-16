@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -12,10 +12,52 @@ from app.schemas.rent import (
     RentPaymentCreate,
     RentPaymentResponse,
     RentPaymentSubmit,
+    RentPaymentUpdate,
 )
 from app.services.rent_service import RentService
 
 router = APIRouter()
+
+
+@router.get("/payments", response_model=List[RentPaymentResponse])
+async def list_payments(
+    current_user: User = Depends(require_permissions(Permission.RENT_VIEW)),
+    db: AsyncSession = Depends(get_db),
+):
+    service = RentService(db)
+    return await service.list_payments(current_user)
+
+
+@router.get("/payments/{payment_id}", response_model=RentPaymentResponse)
+async def get_payment(
+    payment_id: int,
+    current_user: User = Depends(require_permissions(Permission.RENT_VIEW)),
+    db: AsyncSession = Depends(get_db),
+):
+    service = RentService(db)
+    return await service.get_payment(payment_id, current_user)
+
+
+@router.put("/payments/{payment_id}", response_model=RentPaymentResponse)
+async def update_payment(
+    payment_id: int,
+    data: RentPaymentUpdate,
+    current_user: User = Depends(require_permissions(Permission.RENT_MANAGE)),
+    db: AsyncSession = Depends(get_db),
+):
+    service = RentService(db)
+    return await service.update_payment(payment_id, data, current_user)
+
+
+@router.post("/payments/{payment_id}/receipt", response_model=RentPaymentResponse)
+async def upload_receipt(
+    payment_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_permissions(Permission.RENT_VIEW)),
+    db: AsyncSession = Depends(get_db),
+):
+    service = RentService(db)
+    return await service.upload_receipt(payment_id, file, current_user)
 
 
 @router.get("/ledger", response_model=List[RentPaymentResponse])

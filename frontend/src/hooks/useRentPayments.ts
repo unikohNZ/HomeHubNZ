@@ -1,45 +1,54 @@
-import { useCallback, useEffect, useState } from "react";
-import { rentService } from "../services/rentService";
-import { MOCK_RENT_PAYMENTS } from "../../data/mockRent";
-import { buildRentSections } from "../../utils/rentHelpers";
-import { RentPayment, RentSections } from "../../types/rent";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { RentPayment } from "../../types/rent";
+import { TenantPayment } from "../../types/tenantPayment";
+import { queryKeys } from "../lib/queryClient";
+import { rentPaymentService } from "../services/rentPaymentService";
 
-interface UseRentPaymentsResult {
-  payments: RentPayment[];
-  sections: RentSections;
-  loading: boolean;
-  isOffline: boolean;
-  refresh: () => Promise<void>;
+export function useRentPayments(enabled = true) {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: queryKeys.rent.payments,
+    enabled,
+    queryFn: async () => {
+      const cached = queryClient.getQueryData<{ data: RentPayment[] }>(queryKeys.rent.payments);
+      return rentPaymentService.listRentPayments(cached?.data);
+    },
+    placeholderData: (prev) => prev,
+  });
 }
 
-export function useRentPayments(): UseRentPaymentsResult {
-  const [payments, setPayments] = useState<RentPayment[]>(MOCK_RENT_PAYMENTS);
-  const [loading, setLoading] = useState(true);
-  const [isOffline, setIsOffline] = useState(false);
+export function useTenantPayments(enabled = true) {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: queryKeys.rentPayments,
+    enabled,
+    queryFn: async () => {
+      const cached = queryClient.getQueryData<{ data: TenantPayment[] }>(queryKeys.rentPayments);
+      return rentPaymentService.listTenantPayments(cached?.data);
+    },
+    placeholderData: (prev) => prev,
+  });
+}
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await rentService.list();
-      setPayments(data as unknown as RentPayment[]);
-      setIsOffline(false);
-    } catch {
-      setPayments(MOCK_RENT_PAYMENTS);
-      setIsOffline(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+export function useMarkTenantPaid() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, paymentDate }: { id: string; paymentDate: string }) =>
+      rentPaymentService.markPaid(id, paymentDate),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.rentPayments });
+      queryClient.invalidateQueries({ queryKey: queryKeys.rent.payments });
+    },
+  });
+}
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  return {
-    payments,
-    sections: buildRentSections(payments),
-    loading,
-    isOffline,
-    refresh,
-  };
+export function useCreateRentPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: rentPaymentService.createPayment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.rent.payments });
+      queryClient.invalidateQueries({ queryKey: queryKeys.rentPayments });
+    },
+  });
 }

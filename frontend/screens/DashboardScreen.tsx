@@ -52,6 +52,9 @@ interface DashboardScreenProps {
   onPayments: () => void;
   onMaintenance: () => void;
   onProfile: () => void;
+  userName?: string;
+  avatarUrl?: string | null;
+  backendOffline?: boolean;
   landlordNotifications?: AppNotification[];
   nextInspectionDate?: string;
   inspectionReminder?: boolean;
@@ -91,13 +94,17 @@ export function DashboardScreen({
   onPayments,
   onMaintenance,
   onProfile,
+  userName,
+  avatarUrl,
+  backendOffline,
   landlordNotifications = notifications,
   nextInspectionDate = "20 June 2026",
   inspectionReminder = true,
   onScheduleInspection,
 }: DashboardScreenProps) {
   const { theme } = useTheme();
-  const user = role === "landlord" ? LANDLORD_USER : FLATMATE_USER;
+  const fallbackUser = role === "landlord" ? LANDLORD_USER : FLATMATE_USER;
+  const user = { ...fallbackUser, name: userName ?? fallbackUser.name, avatar_url: avatarUrl };
   const firstName = user.name.split(" ")[0];
 
   return (
@@ -126,7 +133,12 @@ export function DashboardScreen({
       headerRight={
         <View style={styles.headerRight}>
           <Pressable onPress={onProfile}>
-            <UserAvatar name={user.name} color={user.avatar_color} size={40} />
+            <UserAvatar
+              name={user.name}
+              color={user.avatar_color}
+              size={40}
+              imageUri={user.avatar_url}
+            />
           </Pressable>
           {role === "flatmate" && (
             <NotificationBell count={unreadNotifications} onPress={onNotifications} />

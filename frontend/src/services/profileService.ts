@@ -46,12 +46,27 @@ export const profileService = {
     });
     return data;
   },
+
+  /** Spec alias — POST /users/me/photo */
+  async uploadPhoto(file: { uri: string; name: string; type: string }): Promise<UserProfile> {
+    const form = new FormData();
+    form.append("file", {
+      uri: file.uri,
+      name: file.name,
+      type: file.type,
+    } as unknown as Blob);
+    const { data } = await api.post<UserProfile>("/users/me/photo", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  },
 };
 
-export function useProfile() {
+export function useProfile(enabled = true) {
   return useQuery({
     queryKey: queryKeys.profile.me,
     queryFn: () => profileService.getProfile(),
+    enabled,
     placeholderData: (prev) => prev,
   });
 }
@@ -60,6 +75,17 @@ export function useUpdateProfile() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: profileService.updateProfile,
+    onSuccess: (data) => {
+      client.setQueryData(queryKeys.profile.me, data);
+      client.invalidateQueries({ queryKey: queryKeys.auth.me });
+    },
+  });
+}
+
+export function useUploadAvatar() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: profileService.uploadAvatar,
     onSuccess: (data) => {
       client.setQueryData(queryKeys.profile.me, data);
       client.invalidateQueries({ queryKey: queryKeys.auth.me });

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, computed_field
 
 
 class RegisterRequest(BaseModel):
@@ -52,3 +52,8 @@ class UserResponse(BaseModel):
     role: str
 
     model_config = {"from_attributes": True}
+
+    @computed_field
+    @property
+    def profile_photo_url(self) -> Optional[str]:
+        return self.avatar_url

@@ -59,8 +59,19 @@ async function ensureAuth(): Promise<void> {
   await tryDevLogin();
 }
 
-function withMockFallback(error: unknown, reason?: string): PropertyListResult {
+function withMockFallback(
+  error: unknown,
+  cached?: Property[],
+  reason?: string,
+): PropertyListResult {
   usingApi = false;
+  if (cached?.length) {
+    return {
+      data: cached,
+      source: "api",
+      error: reason ?? getApiErrorMessage(error),
+    };
+  }
   return {
     data: MOCK_PROPERTIES,
     source: "mock",
@@ -149,7 +160,8 @@ export const propertyService = {
       usingApi = true;
       return { data: mapList(data, existing), source: "api" };
     } catch (error) {
-      return withMockFallback(error);
+      const cached = existing?.length ? existing : undefined;
+      return withMockFallback(error, cached);
     }
   },
 
@@ -227,6 +239,33 @@ export const propertyService = {
       return { property: fromApiProperty(data, local), source: "api" };
     } catch (error) {
       return { property: local, source: "mock", error: getApiErrorMessage(error) };
+    }
+  },
+
+  async uploadPropertyPhoto(
+    id: string,
+    file: { uri: string; name: string; type: string },
+  ): Promise<{ imageUrl: string; source: PropertyDataSource; error?: string }> {
+    if (!usingApi || !isNumericPropertyId(id)) {
+      return { imageUrl: file.uri, source: "mock" };
+    }
+    try {
+      const form = new FormData();
+      form.append("file", {
+        uri: file.uri,
+        name: file.name,
+        type: file.type,
+      } as unknown as Blob);
+      const { data } = await api.post<ApiProperty>(`/properties/${id}/photo`, form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      const urls = data.image_urls ?? [];
+      return {
+        imageUrl: urls[0] ?? file.uri,
+        source: "api",
+      };
+    } catch (error) {
+      return { imageUrl: file.uri, source: "mock", error: getApiErrorMessage(error) };
     }
   },
 

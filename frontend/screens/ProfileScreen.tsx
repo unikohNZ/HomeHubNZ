@@ -11,6 +11,8 @@ import { FLATMATE_USER, LANDLORD_USER } from "../data/mockUsers";
 import { DemoRole, SubScreen } from "../types";
 import { radius, spacing, touchTarget } from "../constants/design";
 import { pickProfileImage } from "../utils/imagePicker";
+import { useProfile, useUploadAvatar } from "../src/services/profileService";
+import { isMockMode } from "../src/utils/dataSource";
 
 const PROFILE_PHOTO_SIZE = 96;
 
@@ -48,11 +50,16 @@ export function ProfileScreen({
   onNavigateMyFlat,
 }: ProfileScreenProps) {
   const { theme } = useTheme();
-  const { user: authUser, logout } = useAuth();
+  const { user: authUser, logout, updateUser } = useAuth();
   const user = authUser ?? (role === "landlord" ? LANDLORD_USER : FLATMATE_USER);
+  const profileQuery = useProfile(!isMockMode());
+  const uploadAvatar = useUploadAvatar();
   const [showSignOutModal, setShowSignOutModal] = useState(false);
-  const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
+  const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
   const [pickingPhoto, setPickingPhoto] = useState(false);
+
+  const profilePhotoUri =
+    localPhotoUri ?? user.avatar_url ?? profileQuery.data?.avatar_url ?? null;
 
   const handleChangePhoto = async () => {
     if (pickingPhoto) return;
@@ -60,8 +67,18 @@ export function ProfileScreen({
     setPickingPhoto(true);
     try {
       const uri = await pickProfileImage();
-      if (uri) {
-        setProfilePhotoUri(uri);
+      if (!uri) return;
+
+      setLocalPhotoUri(uri);
+
+      if (!isMockMode()) {
+        const updated = await uploadAvatar.mutateAsync({
+          uri,
+          name: "avatar.jpg",
+          type: "image/jpeg",
+        });
+        updateUser({ avatar_url: updated.avatar_url ?? uri });
+        setLocalPhotoUri(null);
       }
     } finally {
       setPickingPhoto(false);
@@ -131,11 +148,11 @@ export function ProfileScreen({
                 pressed && styles.changePhotoPressed,
               ]}
               onPress={handleChangePhoto}
-              disabled={pickingPhoto}
+              disabled={pickingPhoto || uploadAvatar.isPending}
               accessibilityRole="button"
               accessibilityLabel="Change profile photo"
             >
-              {pickingPhoto ? (
+              {pickingPhoto || uploadAvatar.isPending ? (
                 <ActivityIndicator size="small" color={theme.primary} />
               ) : (
                 <Text style={[styles.changePhotoText, { color: theme.primary }]}>Change Photo</Text>
