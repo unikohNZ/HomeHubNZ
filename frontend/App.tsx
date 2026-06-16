@@ -48,6 +48,7 @@ import {
   MOCK_LANDLORD_TENANTS,
 } from "./data/mockLandlord";
 import { INITIAL_JOIN_REQUESTS, MOCK_CHAT_MESSAGES, MOCK_CONVERSATIONS } from "./data/mockMessages";
+import { MOCK_TENANT_PAYMENTS } from "./data/mockTenantPayments";
 import { MOCK_RENT_PAYMENTS } from "./data/mockRent";
 import { FLATMATE_USER } from "./data/mockUsers";
 import { usePropertiesData } from "./hooks/usePropertiesData";
@@ -74,6 +75,7 @@ import { AvailabilityStatus } from "./types/flatExtended";
 import { ChatMessage, Conversation } from "./types/message";
 import { Property, PropertyFormData } from "./types/property";
 import { JoinRequest } from "./types/request";
+import { TenantPayment } from "./types/tenantPayment";
 import { RentPayment } from "./types/rent";
 import { buildRentSections, getNextRentDate, getRentDaysUntil } from "./utils/rentHelpers";
 import { pickProfileImage } from "./utils/imagePicker";
@@ -150,6 +152,7 @@ function HomeHubApp() {
     ...INITIAL_JOIN_REQUESTS,
   ]);
   const [rentPayments] = useState<RentPayment[]>(MOCK_RENT_PAYMENTS);
+  const [tenantPayments, setTenantPayments] = useState<TenantPayment[]>(MOCK_TENANT_PAYMENTS);
   const [conversations, setConversations] = useState<Conversation[]>(MOCK_CONVERSATIONS);
   const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>(MOCK_CHAT_MESSAGES);
 
@@ -361,6 +364,39 @@ function HomeHubApp() {
       ),
     );
     showToast(`Status updated to ${status.replace("_", " ")}`);
+  };
+
+  const markTenantPaid = (id: string) => {
+    setTenantPayments((prev) => {
+      const target = prev.find((p) => p.id === id);
+      if (target) {
+        setLandlordTenants((tenants) =>
+          tenants.map((t) =>
+            t.id === target.tenant_id ? { ...t, rent_status: "paid" as const } : t,
+          ),
+        );
+      }
+      return prev.map((p) =>
+        p.id === id
+          ? { ...p, payment_date: "2026-06-13", payment_method: "Bank transfer" }
+          : p,
+      );
+    });
+    showToast("Rent marked as paid");
+  };
+
+  const sendRentReminder = (id: string) => {
+    const payment = tenantPayments.find((p) => p.id === id);
+    showToast(`Reminder sent to ${payment?.tenant_name ?? "tenant"} (mock)`);
+  };
+
+  const viewRentReceipt = (id: string) => {
+    const payment = tenantPayments.find((p) => p.id === id);
+    if (payment?.payment_date) {
+      showToast(`Receipt for ${payment.tenant_name} — ${payment.payment_date} (mock)`);
+    } else {
+      showToast("No receipt — payment not yet received");
+    }
   };
 
   const assignMaintenanceContractor = (id: string, contractor: string) => {
@@ -1241,10 +1277,15 @@ function HomeHubApp() {
             expectedMonthlyIncome={monthlyIncome}
             collectedThisMonth={collectedThisMonth}
             documents={landlordDocuments}
+            tenantPayments={tenantPayments}
             refreshing={refreshing}
             onRefresh={handleRefresh}
             onExportReport={() => showToast("Income report exported (mock)")}
             onUploadDocument={uploadLandlordDocument}
+            onMarkTenantPaid={markTenantPaid}
+            onSendRentReminder={sendRentReminder}
+            onViewRentReceipt={viewRentReceipt}
+            onMessageTenant={(conversationId) => openChat(conversationId)}
           />
         );
       case "maintenance":

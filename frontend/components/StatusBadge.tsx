@@ -21,7 +21,7 @@ export function StatusBadge({ label, status = "neutral" }: StatusBadgeProps) {
     neutral: { bg: theme.cardElevated, text: theme.textSecondary },
   };
 
-  const tone = status === "due_today" ? "pending" : status;
+  const tone = (status in colors ? status : "neutral") as StatusTone;
   const palette = colors[tone] ?? colors.neutral;
 
   return (
