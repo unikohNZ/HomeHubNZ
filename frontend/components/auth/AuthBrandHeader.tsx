@@ -1,8 +1,8 @@
 import { StyleSheet, Text, View } from "react-native";
 import { BrandLogo } from "./BrandLogo";
-import { BRAND_TAGLINE } from "../constants/branding";
-import { authColors } from "./auth/authTheme";
-import { spacing } from "../constants/design";
+import { BRAND_TAGLINE } from "../../constants/branding";
+import { authColors } from "./authTheme";
+import { spacing } from "../../constants/design";
 
 interface AuthBrandHeaderProps {
   centered?: boolean;

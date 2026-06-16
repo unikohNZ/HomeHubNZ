@@ -14,6 +14,8 @@ export interface Conversation {
   typing?: boolean;
 }
 
+export type ChatMessageType = "text" | "image";
+
 export interface ChatMessage {
   id: string;
   conversation_id: string;
@@ -21,4 +23,6 @@ export interface ChatMessage {
   content: string;
   created_at: string;
   is_mine: boolean;
+  type?: ChatMessageType;
+  image_uri?: string;
 }

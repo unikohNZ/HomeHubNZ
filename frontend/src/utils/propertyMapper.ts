@@ -7,6 +7,8 @@ const DEFAULT_IMAGE =
 export interface ApiProperty {
   id: number;
   owner_id: number;
+  name?: string;
+  address?: string;
   address_line1: string;
   address_line2?: string | null;
   suburb: string;
@@ -15,12 +17,19 @@ export interface ApiProperty {
   property_type: string;
   bedrooms: number;
   bathrooms: number;
+  weekly_rent?: number | string;
   rent_amount: number | string;
   bond_amount: number | string;
+  available_rooms?: number;
+  max_flatmates?: number;
+  flatmate_count?: number;
+  occupancy?: string;
   rent_frequency?: string;
   description?: string | null;
   image_urls?: string[] | null;
   full_address: string;
+  lease_start?: string | null;
+  lease_end?: string | null;
 }
 
 const UI_TO_API_TYPE: Record<PropertyType, string> = {
@@ -39,22 +48,29 @@ const API_TO_UI_TYPE: Record<string, PropertyType> = {
   studio: "Studio",
 };
 
-function toNumber(value: number | string): number {
+function toNumber(value: number | string | undefined): number {
+  if (value === undefined) return 0;
   return typeof value === "number" ? value : parseFloat(value) || 0;
 }
 
-export function fromApiProperty(
-  api: ApiProperty,
-  existing?: Property,
-): Property {
-  const weeklyRent = toNumber(api.rent_amount);
+function formatLeaseDate(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  return value.slice(0, 10);
+}
+
+export function fromApiProperty(api: ApiProperty, existing?: Property): Property {
+  const weeklyRent = toNumber(api.weekly_rent ?? api.rent_amount);
   const bond = toNumber(api.bond_amount);
-  const maxFlatmates = existing?.max_flatmates ?? Math.max(2, api.bedrooms);
+  const maxFlatmates = api.max_flatmates ?? existing?.max_flatmates ?? Math.max(2, api.bedrooms);
+  const flatmateCount =
+    api.flatmate_count ??
+    existing?.flatmate_count ??
+    Math.max(0, maxFlatmates - (api.available_rooms ?? maxFlatmates - 1));
 
   return {
     id: String(api.id),
-    name: api.address_line2?.trim() || api.address_line1,
-    address: api.address_line1,
+    name: api.name?.trim() || api.address_line2?.trim() || api.address?.trim() || api.address_line1,
+    address: api.address ?? api.address_line1,
     suburb: api.suburb,
     city: api.city,
     property_type: API_TO_UI_TYPE[api.property_type] ?? "Apartment",
@@ -62,31 +78,31 @@ export function fromApiProperty(
     bathrooms: api.bathrooms,
     weekly_rent: weeklyRent,
     bond,
-    available_rooms: existing?.available_rooms ?? Math.max(1, api.bedrooms - 1),
+    available_rooms: api.available_rooms ?? existing?.available_rooms ?? Math.max(1, api.bedrooms - 1),
     max_flatmates: maxFlatmates,
-    flatmate_count: existing?.flatmate_count ?? 0,
+    flatmate_count: flatmateCount,
     description: api.description?.trim() || "New Zealand rental property.",
     rules: existing?.rules ?? DEFAULT_RULES,
     image_url: api.image_urls?.[0] ?? existing?.image_url ?? DEFAULT_IMAGE,
-    lease_start: existing?.lease_start,
-    lease_end: existing?.lease_end,
+    lease_start: formatLeaseDate(api.lease_start) ?? existing?.lease_start,
+    lease_end: formatLeaseDate(api.lease_end) ?? existing?.lease_end,
   };
 }
 
 export function toApiCreatePayload(form: PropertyFormData) {
   return {
-    address_line1: form.address.trim(),
-    address_line2: form.name.trim() || null,
+    name: form.name.trim(),
+    address: form.address.trim(),
     suburb: form.suburb.trim() || "Tauranga",
     city: form.city.trim() || "Tauranga",
     postcode: "3110",
     property_type: UI_TO_API_TYPE[form.property_type] ?? "apartment",
     bedrooms: parseInt(form.bedrooms, 10) || 1,
     bathrooms: parseInt(form.bathrooms, 10) || 1,
-    rent_amount: parseFloat(form.weekly_rent) || 0,
-    bond_amount:
-      parseFloat(form.bond) || (parseFloat(form.weekly_rent) || 0) * 4,
-    rent_frequency: "weekly",
+    weekly_rent: parseFloat(form.weekly_rent) || 0,
+    bond_amount: parseFloat(form.bond) || (parseFloat(form.weekly_rent) || 0) * 4,
+    available_rooms: parseInt(form.available_rooms, 10) || 1,
+    max_flatmates: parseInt(form.max_flatmates, 10) || 2,
     description: form.description.trim() || "New Zealand rental property.",
   };
 }
@@ -99,15 +115,17 @@ export function toApiUpdatePayload(
     weeklyRentOverride ?? (parseFloat(form.weekly_rent) || undefined);
 
   return {
-    address_line1: form.address.trim() || undefined,
-    address_line2: form.name.trim() || undefined,
+    name: form.name.trim() || undefined,
+    address: form.address.trim() || undefined,
     suburb: form.suburb.trim() || undefined,
     city: form.city.trim() || undefined,
     property_type: UI_TO_API_TYPE[form.property_type] ?? undefined,
     bedrooms: parseInt(form.bedrooms, 10) || undefined,
     bathrooms: parseInt(form.bathrooms, 10) || undefined,
-    rent_amount: weeklyRent,
+    weekly_rent: weeklyRent,
     bond_amount: parseFloat(form.bond) || undefined,
+    available_rooms: parseInt(form.available_rooms, 10) || undefined,
+    max_flatmates: parseInt(form.max_flatmates, 10) || undefined,
     description: form.description.trim() || undefined,
   };
 }

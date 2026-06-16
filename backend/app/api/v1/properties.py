@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,6 +29,39 @@ async def list_properties(
 ):
     service = PropertyService(db)
     return await service.get_all(current_user, skip, limit)
+
+
+@router.get("/search", response_model=List[PropertyResponse])
+async def search_properties(
+    city: str | None = Query(None),
+    min_rent: float | None = Query(None),
+    max_rent: float | None = Query(None),
+    min_rooms: int | None = Query(None, ge=0),
+    min_bedrooms: int | None = Query(None, ge=0),
+    property_type: str | None = Query(None),
+    query: str | None = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = PropertyService(db)
+    return await service.search(
+        city=city,
+        min_rent=min_rent,
+        max_rent=max_rent,
+        min_rooms=min_rooms,
+        min_bedrooms=min_bedrooms,
+        property_type=property_type,
+        query=query,
+    )
+
+
+@router.get("/my-flat", response_model=Optional[PropertyResponse])
+async def get_my_flat(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = PropertyService(db)
+    return await service.get_my_flat(current_user)
 
 
 @router.post("", response_model=PropertyResponse, status_code=201)

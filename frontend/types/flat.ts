@@ -105,6 +105,7 @@ export interface MaintenanceRequest {
   id: string;
   title: string;
   property: string;
+  property_id?: string;
   submitted_date: string;
   contractor: string;
   status: MaintenanceStatus;
@@ -112,6 +113,7 @@ export interface MaintenanceRequest {
   priority: ChorePriority;
   timeline: MaintenanceStatus[];
   conversation_id?: string;
+  landlord_note?: string;
 }
 
 export type FeedPostType = "bill" | "chore" | "maintenance" | "landlord" | "rule";

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { FeatureMenu } from "../components/FeatureMenu";
 import { JoinRequestCard } from "../components/JoinRequestCard";
-import { PropertyApiBanner } from "../components/PropertyApiBanner";
+import { OfflineBanner } from "../components/OfflineBanner";
 import { ScreenShell } from "../components/ScreenShell";
 import { UserAvatar } from "../components/UserAvatar";
 import { Badge } from "../components/ui/Badge";
@@ -12,9 +12,10 @@ import { SegmentTabs } from "../components/ui/SegmentTabs";
 import { useTheme } from "../context/ThemeContext";
 import { MOCK_FLATMATE_MEMBERS, MOCK_HOUSE_RULES, MOCK_MAINTENANCE, MOCK_SHARED_BILLS } from "../data/mockFlatData";
 import { JoinRequest } from "../types/request";
+import { HouseRule } from "../types/flat";
 import { Property } from "../types/property";
 import { SubScreen } from "../types/navigation";
-import { PropertyDataSource } from "../src/services/propertyApi";
+import { FeatureTabId } from "../data/featureCategories";
 import { formatCurrency } from "../utils/format";
 import { radius, spacing } from "../constants/design";
 
@@ -46,12 +47,15 @@ interface MyFlatScreenProps {
   upcomingVisitors: number;
   propertiesLoading?: boolean;
   propertiesError?: string | null;
-  propertiesSource?: PropertyDataSource;
+  propertiesOffline?: boolean;
+  houseRules?: HouseRule[];
   onRetryProperties?: () => void;
+  onOpenPropertySearch?: () => void;
   onRequestJoin: (propertyId: string) => void;
   onCancelRequest: (id: string) => void;
   onLeaveFlat: () => void;
   onNavigateFeature: (screen: SubScreen) => void;
+  onNavigateTab?: (tab: FeatureTabId) => void;
   onMessageFlatmates: () => void;
   refreshing?: boolean;
   onRefresh?: () => void;
@@ -71,8 +75,8 @@ export function MyFlatScreen(props: MyFlatScreenProps) {
   const {
     searchQuery, onSearchChange, searchResults, allProperties, joinedProperty,
     myJoinRequests, nextRentDate, maintenanceActive, propertiesLoading, propertiesError,
-    propertiesSource = "mock", onRetryProperties, onRequestJoin, onCancelRequest,
-    onLeaveFlat, onNavigateFeature, onMessageFlatmates, refreshing, onRefresh,
+    propertiesOffline = false, houseRules = MOCK_HOUSE_RULES, onRetryProperties, onOpenPropertySearch,
+    onLeaveFlat, onNavigateFeature, onNavigateTab, onMessageFlatmates, refreshing, onRefresh,
   } = props;
 
   if (!joinedProperty) {
@@ -90,10 +94,9 @@ export function MyFlatScreen(props: MyFlatScreenProps) {
       refreshing={refreshing}
       onRefresh={onRefresh}
     >
-      <PropertyApiBanner
+      <OfflineBanner
         loading={propertiesLoading}
-        error={propertiesError}
-        source={propertiesSource}
+        isOffline={propertiesOffline}
         onRetry={onRetryProperties}
       />
 
@@ -121,8 +124,11 @@ export function MyFlatScreen(props: MyFlatScreenProps) {
               <Text style={[styles.leaveText, { color: theme.danger }]}>Leave Flat</Text>
             </Pressable>
           </View>
-          <SectionHeader title="More Features" />
-          <FeatureMenu onNavigate={onNavigateFeature} />
+          <SectionHeader title="Flat Features" />
+          <FeatureMenu
+            onNavigate={onNavigateFeature}
+            onNavigateTab={onNavigateTab}
+          />
         </>
       )}
 
@@ -148,7 +154,7 @@ export function MyFlatScreen(props: MyFlatScreenProps) {
 
       {tab === "rules" && (
         <>
-          {MOCK_HOUSE_RULES.map((rule) => (
+          {houseRules.map((rule) => (
             <View key={rule.id} style={[styles.ruleCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
               <Text style={[styles.ruleText, { color: theme.text }]}>{rule.text}</Text>
               <Badge label={rule.accepted ? "Accepted" : "Review"} tone={rule.accepted ? "success" : "warning"} />
@@ -216,8 +222,8 @@ function BrowseFlats(props: MyFlatScreenProps) {
   const { theme } = useTheme();
   const {
     searchQuery, onSearchChange, searchResults, allProperties, joinedProperty,
-    myJoinRequests, propertiesLoading, propertiesError, propertiesSource,
-    onRetryProperties, onRequestJoin, onCancelRequest,
+    myJoinRequests, propertiesLoading, propertiesOffline = false,
+    onRetryProperties, onOpenPropertySearch, onRequestJoin, onCancelRequest,
   } = props;
 
   const availableToJoin = searchResults.filter((p) => p.id !== joinedProperty?.id);
@@ -226,10 +232,9 @@ function BrowseFlats(props: MyFlatScreenProps) {
 
   return (
     <ScreenShell title="My Flat" subtitle="Find your next flat in NZ">
-      <PropertyApiBanner
+      <OfflineBanner
         loading={propertiesLoading}
-        error={propertiesError}
-        source={propertiesSource ?? "mock"}
+        isOffline={propertiesOffline}
         onRetry={onRetryProperties}
       />
       <TextInput
@@ -239,6 +244,16 @@ function BrowseFlats(props: MyFlatScreenProps) {
         value={searchQuery}
         onChangeText={onSearchChange}
       />
+      {onOpenPropertySearch && (
+        <Pressable
+          style={[styles.searchBtn, { backgroundColor: theme.primaryMuted }]}
+          onPress={onOpenPropertySearch}
+        >
+          <Text style={[styles.searchBtnText, { color: theme.primary }]}>
+            Advanced search with filters →
+          </Text>
+        </Pressable>
+      )}
       {myJoinRequests.length > 0 && (
         <>
           <SectionHeader title="Join Request Status" />
@@ -323,7 +338,9 @@ const styles = StyleSheet.create({
   maintMeta: { fontSize: 12, marginTop: 4 },
   linkBtn: { borderRadius: radius.lg, padding: spacing.lg, alignItems: "center", marginTop: spacing.sm },
   linkText: { fontWeight: "700", fontSize: 14 },
-  search: { borderRadius: radius.lg, borderWidth: 1, paddingHorizontal: spacing.lg, paddingVertical: 14, fontSize: 15, marginBottom: spacing.lg },
+  search: { borderRadius: radius.lg, borderWidth: 1, paddingHorizontal: spacing.lg, paddingVertical: 14, fontSize: 15, marginBottom: spacing.sm },
+  searchBtn: { borderRadius: radius.lg, padding: spacing.md, alignItems: "center", marginBottom: spacing.lg },
+  searchBtnText: { fontWeight: "700", fontSize: 14 },
   searchCard: { borderRadius: radius.xl, borderWidth: 1, padding: spacing.lg, marginBottom: spacing.md },
   searchImage: { width: "100%", height: 120, borderRadius: radius.lg, marginBottom: spacing.md },
   flatName: { fontSize: 20, fontWeight: "800" },

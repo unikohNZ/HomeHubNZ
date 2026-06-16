@@ -24,11 +24,13 @@ interface DashboardScreenProps {
   rentDue: number;
   nextRentDate: string | null;
   nextRentAmount: number;
+  rentDaysUntil: number | null;
   flatName: string | null;
   alertLevel: AlertLevel;
   alertTitle: string;
   occupancyRate: number;
   unreadMessages: number;
+  choresPending: number;
   unreadNotifications: number;
   notifications: AppNotification[];
   monthlyIncome: number;
@@ -41,7 +43,6 @@ interface DashboardScreenProps {
   onMyFlat: () => void;
   onRent: () => void;
   onMessages: () => void;
-  onRules: () => void;
   onEmergency: () => void;
   onCalendar: () => void;
   onAlerts: () => void;
@@ -51,6 +52,10 @@ interface DashboardScreenProps {
   onPayments: () => void;
   onMaintenance: () => void;
   onProfile: () => void;
+  landlordNotifications?: AppNotification[];
+  nextInspectionDate?: string;
+  inspectionReminder?: boolean;
+  onScheduleInspection?: () => void;
 }
 
 export function DashboardScreen({
@@ -58,10 +63,13 @@ export function DashboardScreen({
   rentDue,
   nextRentDate,
   nextRentAmount,
+  rentDaysUntil,
   flatName,
   alertLevel,
   alertTitle,
   occupancyRate,
+  unreadMessages,
+  choresPending,
   unreadNotifications,
   notifications,
   monthlyIncome,
@@ -74,7 +82,6 @@ export function DashboardScreen({
   onMyFlat,
   onRent,
   onMessages,
-  onRules,
   onEmergency,
   onCalendar,
   onAlerts,
@@ -84,6 +91,10 @@ export function DashboardScreen({
   onPayments,
   onMaintenance,
   onProfile,
+  landlordNotifications = notifications,
+  nextInspectionDate = "20 June 2026",
+  inspectionReminder = true,
+  onScheduleInspection,
 }: DashboardScreenProps) {
   const { theme } = useTheme();
   const user = role === "landlord" ? LANDLORD_USER : FLATMATE_USER;
@@ -128,14 +139,16 @@ export function DashboardScreen({
           rentDue={rentDue}
           nextRentDate={nextRentDate}
           nextRentAmount={nextRentAmount}
+          rentDaysUntil={rentDaysUntil}
           flatName={flatName}
           alertLevel={alertLevel}
           alertTitle={alertTitle}
+          unreadMessages={unreadMessages}
+          choresPending={choresPending}
           notifications={notifications}
           onMyFlat={onMyFlat}
           onRent={onRent}
           onMessages={onMessages}
-          onRules={onRules}
           onEmergency={onEmergency}
           onCalendar={onCalendar}
           onAlerts={onAlerts}
@@ -149,11 +162,16 @@ export function DashboardScreen({
           outstandingRent={outstandingRent}
           maintenanceCount={maintenanceCount}
           pendingRequests={pendingRequests}
+          notifications={landlordNotifications}
+          nextInspectionDate={nextInspectionDate}
+          inspectionReminder={inspectionReminder}
           onProperties={onProperties}
           onTenants={onTenants}
           onPayments={onPayments}
           onMaintenance={onMaintenance}
           onProfile={onProfile}
+          onNotifications={onNotifications}
+          onScheduleInspection={onScheduleInspection ?? onCalendar}
         />
       )}
     </ScreenShell>

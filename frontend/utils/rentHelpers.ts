@@ -1,5 +1,5 @@
 import { ComputedRentPayment, RentPayment, RentSections } from "../types/rent";
-import { formatDate, getRentStatus, parseDate, TODAY } from "./rentDates";
+import { formatDate, getDaysDifference, getRentStatus, parseDate, TODAY } from "./rentDates";
 
 export function computeRentPayment(payment: RentPayment): ComputedRentPayment {
   const result = getRentStatus(payment.due_date, payment.payment_date, TODAY);
@@ -57,4 +57,15 @@ export function getNextRentDate(payments: RentPayment[]): string | null {
 
   if (unpaid.length === 0) return null;
   return formatDate(unpaid[0].due);
+}
+
+/** Negative values mean overdue. */
+export function getRentDaysUntil(payments: RentPayment[]): number | null {
+  const unpaid = payments
+    .filter((p) => !p.payment_date)
+    .map((p) => parseDate(p.due_date))
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  if (unpaid.length === 0) return null;
+  return -getDaysDifference(TODAY, unpaid[0]);
 }

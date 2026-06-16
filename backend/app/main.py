@@ -8,10 +8,21 @@ from app.core.config import get_settings
 from app.core.seed import seed_roles
 from app.database import AsyncSessionLocal, Base, check_database_connection, engine
 from app.api.v1 import api_router
-from app.models import (  # noqa: F401 — register models with metadata
+from app.models import (  # noqa: F401 — register all models with metadata
+    ChatRoom,
+    Document,
+    EmergencyAlert,
+    EmergencyContact,
+    Event,
+    Flatmate,
+    HouseRule,
+    JoinRequest,
     Lease,
     MaintenanceRequest,
+    Message,
+    Notification,
     Property,
+    PropertyImage,
     RentPayment,
     Role,
     User,

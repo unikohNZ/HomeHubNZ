@@ -31,7 +31,13 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "HomeHub NZ needs photo access so you can upload profile and chat images."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

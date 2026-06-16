@@ -1,4 +1,5 @@
 import {
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -18,7 +19,9 @@ interface PropertyFormModalProps {
   visible: boolean;
   editing: boolean;
   form: PropertyFormData;
+  imageUri?: string | null;
   onChange: (key: keyof PropertyFormData, value: string) => void;
+  onPickPhoto?: () => void;
   onSave: () => void;
   onClose: () => void;
 }
@@ -27,7 +30,9 @@ export function PropertyFormModal({
   visible,
   editing,
   form,
+  imageUri,
   onChange,
+  onPickPhoto,
   onSave,
   onClose,
 }: PropertyFormModalProps) {
@@ -85,12 +90,18 @@ export function PropertyFormModal({
                 ))}
               </View>
 
-              <View style={styles.imagePlaceholder}>
-                <Text style={styles.imageEmoji}>🏠</Text>
-                <Text style={[styles.imageText, { color: theme.textMuted }]}>
-                  Property image placeholder
-                </Text>
-              </View>
+              <Pressable style={styles.imagePlaceholder} onPress={onPickPhoto}>
+                {imageUri ? (
+                  <Image source={{ uri: imageUri }} style={styles.imagePreview} />
+                ) : (
+                  <>
+                    <Text style={styles.imageEmoji}>📷</Text>
+                    <Text style={[styles.imageText, { color: theme.textMuted }]}>
+                      Tap to upload property photo
+                    </Text>
+                  </>
+                )}
+              </Pressable>
 
               <View style={styles.row}>
                 <View style={styles.half}>
@@ -205,7 +216,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#334155",
     borderStyle: "dashed",
+    overflow: "hidden",
   },
+  imagePreview: { width: "100%", height: "100%" },
   imageEmoji: { fontSize: 32 },
   imageText: { fontSize: 12, marginTop: 6 },
   field: { marginBottom: 12 },

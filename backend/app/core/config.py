@@ -26,6 +26,17 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://homehub:homehub123@localhost:5432/homehub_db"
 
     SECRET_KEY: str = "change-me-in-production"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+
+    # Supabase Storage (optional — falls back to local URL passthrough in dev)
+    SUPABASE_URL: str = ""
+    SUPABASE_SERVICE_KEY: str = ""
+    SUPABASE_STORAGE_BUCKET: str = "homehub-uploads"
+
+    # Expo push (optional)
+    EXPO_ACCESS_TOKEN: str = ""
 
     @computed_field  # type: ignore[prop-decorator]
     @property

@@ -8,52 +8,68 @@ from app.models.enums import PropertyType, RentFrequency
 
 
 class PropertyCreate(BaseModel):
-    address_line1: str = Field(min_length=1, max_length=255)
-    address_line2: Optional[str] = None
-    suburb: str
-    city: str
-    postcode: str
-    property_type: PropertyType
-    bedrooms: int = Field(ge=0)
-    bathrooms: int = Field(ge=0)
-    rent_amount: Decimal = Field(gt=0)
+    name: str = Field(min_length=1, max_length=255)
+    address: str = Field(min_length=1, max_length=255)
+    city: str = Field(min_length=1, max_length=100)
+    suburb: str = "Tauranga"
+    postcode: str = "3110"
+    property_type: PropertyType = PropertyType.APARTMENT
+    bedrooms: int = Field(ge=0, default=1)
+    bathrooms: int = Field(ge=0, default=1)
+    weekly_rent: Decimal = Field(gt=0)
     bond_amount: Decimal = Field(ge=0)
-    rent_frequency: RentFrequency = RentFrequency.WEEKLY
     description: Optional[str] = None
+    available_rooms: int = Field(ge=0, default=1)
+    max_flatmates: Optional[int] = Field(None, ge=1)
+    lease_start: Optional[date] = None
+    lease_end: Optional[date] = None
 
 
 class PropertyUpdate(BaseModel):
-    address_line1: Optional[str] = None
-    address_line2: Optional[str] = None
+    name: Optional[str] = None
+    address: Optional[str] = None
     suburb: Optional[str] = None
     city: Optional[str] = None
     postcode: Optional[str] = None
     property_type: Optional[PropertyType] = None
-    bedrooms: Optional[int] = None
-    bathrooms: Optional[int] = None
-    rent_amount: Optional[Decimal] = None
-    bond_amount: Optional[Decimal] = None
-    rent_frequency: Optional[RentFrequency] = None
+    bedrooms: Optional[int] = Field(None, ge=0)
+    bathrooms: Optional[int] = Field(None, ge=0)
+    weekly_rent: Optional[Decimal] = Field(None, gt=0)
+    bond_amount: Optional[Decimal] = Field(None, ge=0)
     description: Optional[str] = None
+    available_rooms: Optional[int] = Field(None, ge=0)
+    max_flatmates: Optional[int] = Field(None, ge=1)
+    lease_start: Optional[date] = None
+    lease_end: Optional[date] = None
+    is_published: Optional[bool] = None
 
 
 class PropertyResponse(BaseModel):
     id: int
     owner_id: int
-    address_line1: str
-    address_line2: Optional[str] = None
-    suburb: str
+    name: str
+    address: str
     city: str
+    suburb: str
     postcode: str
-    property_type: PropertyType
+    description: Optional[str] = None
+    weekly_rent: Decimal
+    bond_amount: Decimal
     bedrooms: int
     bathrooms: int
-    rent_amount: Decimal
-    bond_amount: Decimal
+    available_rooms: int
+    max_flatmates: int
+    flatmate_count: int
+    occupancy: str
+    property_type: PropertyType
     rent_frequency: RentFrequency
-    description: Optional[str] = None
+    lease_start: Optional[date] = None
+    lease_end: Optional[date] = None
     image_urls: Optional[List[str]] = None
     full_address: str
+    # Legacy aliases for existing clients
+    address_line1: str
+    rent_amount: Decimal
 
     model_config = {"from_attributes": True}
 

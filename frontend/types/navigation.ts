@@ -27,6 +27,9 @@ export type SubScreen =
   | "gallery"
   | "agreement"
   | "announcements"
-  | "property-health";
+  | "property-health"
+  | "property-search"
+  | "property-detail"
+  | "landlord-notifications";
 
 export type OverlayScreen = "chat" | null;

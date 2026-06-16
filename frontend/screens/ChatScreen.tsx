@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,6 +13,7 @@ import {
 import { ChatBubble } from "../components/ChatBubble";
 import { UserAvatar } from "../components/UserAvatar";
 import { useTheme } from "../context/ThemeContext";
+import { pickMessageImage } from "../utils/imagePicker";
 import { ChatMessage, Conversation } from "../types/message";
 
 interface ChatScreenProps {
@@ -19,12 +21,20 @@ interface ChatScreenProps {
   messages: ChatMessage[];
   onBack: () => void;
   onSend: (content: string) => void;
+  onSendImage: (imageUri: string) => void;
 }
 
-export function ChatScreen({ conversation, messages, onBack, onSend }: ChatScreenProps) {
+export function ChatScreen({
+  conversation,
+  messages,
+  onBack,
+  onSend,
+  onSendImage,
+}: ChatScreenProps) {
   const { theme } = useTheme();
   const [draft, setDraft] = useState("");
   const [typing, setTyping] = useState(false);
+  const [pickingImage, setPickingImage] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -35,12 +45,31 @@ export function ChatScreen({ conversation, messages, onBack, onSend }: ChatScree
     }
   }, [conversation.typing]);
 
+  const scrollToEnd = () => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+  };
+
   const handleSend = () => {
     const text = draft.trim();
     if (!text) return;
     onSend(text);
     setDraft("");
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    scrollToEnd();
+  };
+
+  const handleAttachImage = async () => {
+    if (pickingImage) return;
+
+    setPickingImage(true);
+    try {
+      const uri = await pickMessageImage();
+      if (uri) {
+        onSendImage(uri);
+        scrollToEnd();
+      }
+    } finally {
+      setPickingImage(false);
+    }
   };
 
   return (
@@ -89,6 +118,23 @@ export function ChatScreen({ conversation, messages, onBack, onSend }: ChatScree
       </ScrollView>
 
       <View style={[styles.inputRow, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.attachBtn,
+            { backgroundColor: theme.card, borderColor: theme.border },
+            pressed && styles.attachPressed,
+          ]}
+          onPress={handleAttachImage}
+          disabled={pickingImage}
+          accessibilityRole="button"
+          accessibilityLabel="Attach image"
+        >
+          {pickingImage ? (
+            <ActivityIndicator size="small" color={theme.primary} />
+          ) : (
+            <Text style={styles.attachIcon}>🖼️</Text>
+          )}
+        </Pressable>
         <TextInput
           style={[
             styles.input,
@@ -136,7 +182,18 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 12,
     borderTopWidth: 1,
+    alignItems: "center",
   },
+  attachBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  attachPressed: { opacity: 0.85 },
+  attachIcon: { fontSize: 20 },
   input: {
     flex: 1,
     borderRadius: 20,

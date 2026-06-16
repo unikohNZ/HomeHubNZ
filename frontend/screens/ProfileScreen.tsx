@@ -1,16 +1,18 @@
 import { useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { BrandLogo } from "../components/BrandLogo";
+import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { OfflineBanner } from "../components/OfflineBanner";
 import { ScreenShell } from "../components/ScreenShell";
-import { UserAvatar } from "../components/UserAvatar";
+import { SectionHeader } from "../components/SectionHeader";
 import { Badge } from "../components/ui/Badge";
-import { SectionHeader } from "../components/ui/SectionHeader";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
 import { BRAND_TAGLINE } from "../constants/branding";
 import { FLATMATE_USER, LANDLORD_USER } from "../data/mockUsers";
 import { DemoRole, SubScreen } from "../types";
 import { radius, spacing, touchTarget } from "../constants/design";
+import { pickProfileImage } from "../utils/imagePicker";
+
+const PROFILE_PHOTO_SIZE = 96;
 
 const SIGN_OUT_BG = "#7F1D1D";
 const SIGN_OUT_BORDER = "#EF4444";
@@ -23,9 +25,12 @@ interface ProfileScreenProps {
   requestCount: number;
   unreadNotifications: number;
   isDark: boolean;
+  backendOffline?: boolean;
+  onRetryBackend?: () => void;
   onToggleTheme: () => void;
   onSwitchRole: (role: DemoRole) => void;
   onNavigate: (screen: SubScreen) => void;
+  onNavigateMyFlat?: () => void;
 }
 
 export function ProfileScreen({
@@ -35,22 +40,53 @@ export function ProfileScreen({
   requestCount,
   unreadNotifications,
   isDark,
+  backendOffline,
+  onRetryBackend,
   onToggleTheme,
   onSwitchRole,
   onNavigate,
+  onNavigateMyFlat,
 }: ProfileScreenProps) {
   const { theme } = useTheme();
   const { user: authUser, logout } = useAuth();
   const user = authUser ?? (role === "landlord" ? LANDLORD_USER : FLATMATE_USER);
   const [showSignOutModal, setShowSignOutModal] = useState(false);
+  const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
+  const [pickingPhoto, setPickingPhoto] = useState(false);
 
-  const menuItems: { icon: string; label: string; screen: SubScreen; badge?: number }[] = [
-    { icon: "🔔", label: "Notifications", screen: "notifications", badge: unreadNotifications },
-    { icon: "ℹ️", label: "About HomeHub NZ", screen: "about" },
-    { icon: "📄", label: "Documents", screen: "documents" },
-    { icon: "🆘", label: "Emergency Contacts", screen: "emergency-hub" },
+  const handleChangePhoto = async () => {
+    if (pickingPhoto) return;
+
+    setPickingPhoto(true);
+    try {
+      const uri = await pickProfileImage();
+      if (uri) {
+        setProfilePhotoUri(uri);
+      }
+    } finally {
+      setPickingPhoto(false);
+    }
+  };
+
+  const accountItems = [
+    { icon: "🔔", label: "Notifications", screen: "notifications" as SubScreen, badge: unreadNotifications },
+    { icon: "📄", label: "Documents", screen: "documents" as SubScreen },
+    { icon: "🔒", label: "Privacy", screen: "agreement" as SubScreen },
+  ];
+
+  const householdItems: Array<
+    | { icon: string; label: string; action: () => void }
+    | { icon: string; label: string; screen: SubScreen }
+  > = [
+    { icon: "🏠", label: "My Flat", action: () => onNavigateMyFlat?.() },
     { icon: "📋", label: "House Rules", screen: "house-rules" },
-    { icon: "🔒", label: "Privacy", screen: "agreement" },
+    { icon: "🆘", label: "Emergency Contacts", screen: "emergency-hub" },
+  ];
+
+  const appItems = [
+    { icon: "ℹ️", label: "About HomeHub NZ", screen: "about" as SubScreen },
+    { icon: "📜", label: "Terms", screen: "agreement" as SubScreen },
+    { icon: "🔐", label: "Privacy Policy", screen: "agreement" as SubScreen },
   ];
 
   const confirmSignOut = async () => {
@@ -65,58 +101,104 @@ export function ProfileScreen({
         subtitle="Account & preferences"
         bottomPadding={TAB_BAR_CLEARANCE}
       >
-        <View style={[styles.brandBlock, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <BrandLogo variant="icon" size="medium" />
-          <Text style={[styles.brandName, { color: theme.text }]}>HomeHub NZ</Text>
-          <Text style={[styles.version, { color: theme.textMuted }]}>v1.0.0</Text>
-        </View>
-
         <View style={[styles.profile, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <UserAvatar name={user.name} color={user.avatar_color} size={72} />
+          <View style={styles.avatarColumn}>
+            {profilePhotoUri ? (
+              <Image
+                source={{ uri: profilePhotoUri }}
+                style={[
+                  styles.profilePhoto,
+                  { borderColor: theme.border, backgroundColor: theme.cardElevated },
+                ]}
+                resizeMode="cover"
+                accessibilityLabel="Profile photo"
+              />
+            ) : (
+              <View
+                style={[
+                  styles.profilePhoto,
+                  styles.profilePhotoFallback,
+                  { backgroundColor: user.avatar_color, borderColor: theme.border },
+                ]}
+              >
+                <Text style={styles.profileInitials}>UG</Text>
+              </View>
+            )}
+            <Pressable
+              style={({ pressed }) => [
+                styles.changePhotoBtn,
+                { backgroundColor: theme.primaryMuted, borderColor: theme.primary },
+                pressed && styles.changePhotoPressed,
+              ]}
+              onPress={handleChangePhoto}
+              disabled={pickingPhoto}
+              accessibilityRole="button"
+              accessibilityLabel="Change profile photo"
+            >
+              {pickingPhoto ? (
+                <ActivityIndicator size="small" color={theme.primary} />
+              ) : (
+                <Text style={[styles.changePhotoText, { color: theme.primary }]}>Change Photo</Text>
+              )}
+            </Pressable>
+          </View>
           <View style={styles.profileInfo}>
             <Text style={[styles.name, { color: theme.text }]}>{user.name}</Text>
             <Text style={[styles.email, { color: theme.textSecondary }]}>{user.email}</Text>
+            <Badge
+              label={role === "landlord" ? "Landlord" : "Flatmate"}
+              tone="primary"
+              style={{ marginTop: spacing.sm, alignSelf: "flex-start" }}
+            />
             {user.verified && (
-              <Badge label="✓ Verified" tone="success" style={{ marginTop: spacing.sm }} />
+              <Badge label="✓ Verified" tone="success" style={{ marginTop: spacing.sm, alignSelf: "flex-start" }} />
             )}
           </View>
         </View>
 
-        <View style={styles.stats}>
-          <StatBox label="Properties" value={String(propertyCount)} />
-          <StatBox label="Payments" value={String(paymentCount)} />
-          <StatBox label="Requests" value={String(requestCount)} />
-        </View>
-
-        <SectionHeader title="Settings" />
-        {menuItems.map((item) => (
-          <Pressable
-            key={item.screen}
-            style={[styles.row, { backgroundColor: theme.card, borderColor: theme.border }]}
+        <SectionHeader title="Account" />
+        {accountItems.map((item) => (
+          <ProfileRow
+            key={item.label}
+            icon={item.icon}
+            label={item.label}
+            badge={item.badge}
             onPress={() => onNavigate(item.screen)}
-          >
-            <Text style={[styles.rowLabel, { color: theme.text }]}>
-              {item.icon} {item.label}
-            </Text>
-            {item.badge !== undefined && item.badge > 0 ? (
-              <Badge label={String(item.badge)} tone="danger" />
-            ) : (
-              <Text style={[styles.chevron, { color: theme.textMuted }]}>›</Text>
-            )}
-          </Pressable>
+          />
+        ))}
+        <ProfileRow
+          icon={isDark ? "🌙" : "☀️"}
+          label="Settings"
+          value={isDark ? "Dark mode" : "Light mode"}
+          onPress={onToggleTheme}
+        />
+
+        <SectionHeader title="Household" />
+        {householdItems.map((item) => (
+          <ProfileRow
+            key={item.label}
+            icon={item.icon}
+            label={item.label}
+            onPress={"action" in item ? item.action : () => onNavigate(item.screen)}
+          />
         ))}
 
-        <Pressable
-          style={[styles.row, { backgroundColor: theme.card, borderColor: theme.border }]}
-          onPress={onToggleTheme}
-        >
-          <Text style={[styles.rowLabel, { color: theme.text }]}>
-            {isDark ? "🌙 Dark Mode" : "☀️ Light Mode"}
-          </Text>
-          <Text style={[styles.rowValue, { color: theme.primary }]}>{isDark ? "On" : "Off"}</Text>
-        </Pressable>
+        <SectionHeader title="App" />
+        {appItems.map((item) => (
+          <ProfileRow
+            key={item.label}
+            icon={item.icon}
+            label={item.label}
+            onPress={() => onNavigate(item.screen)}
+          />
+        ))}
+        <View style={[styles.versionRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.rowLabel, { color: theme.text }]}>📱 Version</Text>
+          <Text style={[styles.rowValue, { color: theme.textMuted }]}>v1.0.0</Text>
+        </View>
+        <Text style={[styles.footer, { color: theme.textMuted }]}>{BRAND_TAGLINE}</Text>
 
-        <SectionHeader title="Switch Role" />
+        <SectionHeader title="Demo / Developer" />
         <View style={[styles.roleSection, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Text style={[styles.roleSub, { color: theme.textSecondary }]}>
             Preview flatmate or landlord experience
@@ -152,10 +234,9 @@ export function ProfileScreen({
             </Pressable>
           </View>
         </View>
-
-        <Text style={[styles.footer, { color: theme.textMuted }]}>
-          {BRAND_TAGLINE}
-        </Text>
+        {backendOffline && (
+          <OfflineBanner isOffline onRetry={onRetryBackend} />
+        )}
 
         <Pressable
           style={({ pressed }) => [
@@ -205,31 +286,40 @@ export function ProfileScreen({
   );
 }
 
-function StatBox({ label, value }: { label: string; value: string }) {
+function ProfileRow({
+  icon,
+  label,
+  value,
+  badge,
+  onPress,
+}: {
+  icon: string;
+  label: string;
+  value?: string;
+  badge?: number;
+  onPress: () => void;
+}) {
   const { theme } = useTheme();
   return (
-    <View style={[styles.stat, { backgroundColor: theme.card, borderColor: theme.border }]}>
-      <Text style={[styles.statValue, { color: theme.text }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: theme.textMuted }]}>{label}</Text>
-    </View>
+    <Pressable
+      style={[styles.row, { backgroundColor: theme.card, borderColor: theme.border }]}
+      onPress={onPress}
+    >
+      <Text style={[styles.rowLabel, { color: theme.text }]}>
+        {icon} {label}
+      </Text>
+      {badge !== undefined && badge > 0 ? (
+        <Badge label={String(badge)} tone="danger" />
+      ) : value ? (
+        <Text style={[styles.rowValue, { color: theme.textMuted }]}>{value}</Text>
+      ) : (
+        <Text style={[styles.chevron, { color: theme.textMuted }]}>›</Text>
+      )}
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  brandBlock: {
-    alignItems: "center",
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    padding: spacing.xl,
-    marginBottom: spacing.lg,
-  },
-  brandName: {
-    fontSize: 20,
-    fontWeight: "800",
-    marginTop: spacing.md,
-    letterSpacing: -0.3,
-  },
-  version: { fontSize: 13, fontWeight: "600", marginTop: 4 },
   profile: {
     flexDirection: "row",
     alignItems: "center",
@@ -239,13 +329,50 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     marginBottom: spacing.lg,
   },
+  avatarColumn: {
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  profilePhoto: {
+    width: PROFILE_PHOTO_SIZE,
+    height: PROFILE_PHOTO_SIZE,
+    borderRadius: PROFILE_PHOTO_SIZE / 2,
+    borderWidth: 2,
+  },
+  profilePhotoFallback: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileInitials: {
+    color: "#fff",
+    fontSize: 32,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  changePhotoBtn: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    minHeight: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  changePhotoPressed: { opacity: 0.85 },
+  changePhotoText: { fontSize: 12, fontWeight: "700" },
   profileInfo: { flex: 1 },
   name: { fontSize: 22, fontWeight: "800" },
   email: { fontSize: 14, marginTop: 4 },
-  stats: { flexDirection: "row", gap: spacing.md, marginBottom: spacing.lg },
-  stat: { flex: 1, borderRadius: radius.lg, borderWidth: 1, padding: spacing.lg, alignItems: "center" },
-  statValue: { fontSize: 20, fontWeight: "800" },
-  statLabel: { fontSize: 11, marginTop: 2, fontWeight: "600" },
+  versionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.lg,
+    marginBottom: spacing.sm,
+    minHeight: touchTarget,
+  },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",

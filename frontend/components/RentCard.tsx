@@ -2,7 +2,8 @@ import { StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { ComputedRentPayment } from "../types/rent";
 import { formatCurrency } from "../utils/format";
-import { Card } from "./Card";
+import { AppCard } from "./AppCard";
+import { StatusBadge } from "./StatusBadge";
 
 interface RentCardProps {
   payment: ComputedRentPayment;
@@ -11,28 +12,10 @@ interface RentCardProps {
 export function RentCard({ payment }: RentCardProps) {
   const { theme } = useTheme();
 
-  const tone =
-    payment.computed_status === "paid"
-      ? theme.success
-      : payment.computed_status === "overdue"
-        ? theme.danger
-        : payment.computed_status === "upcoming"
-          ? theme.primary
-          : theme.warning;
-
-  const toneBg =
-    payment.computed_status === "paid"
-      ? theme.successMuted
-      : payment.computed_status === "overdue"
-        ? theme.dangerMuted
-        : payment.computed_status === "upcoming"
-          ? theme.primaryMuted
-          : theme.warningMuted;
-
   return (
-    <Card>
+    <AppCard>
       <View style={styles.row}>
-        <View style={[styles.icon, { backgroundColor: toneBg }]}>
+        <View style={[styles.icon, { backgroundColor: theme.primaryMuted }]}>
           <Text>💰</Text>
         </View>
         <View style={styles.flex}>
@@ -45,20 +28,16 @@ export function RentCard({ payment }: RentCardProps) {
               Paid {payment.payment_date_display}
             </Text>
           )}
-          <Text style={[styles.days, { color: tone }]}>{payment.days_info}</Text>
+          <Text style={[styles.days, { color: theme.textSecondary }]}>{payment.days_info}</Text>
         </View>
         <View style={styles.right}>
           <Text style={[styles.amount, { color: theme.text }]}>
             {formatCurrency(payment.amount)}
           </Text>
-          <View style={[styles.badge, { backgroundColor: toneBg }]}>
-            <Text style={[styles.badgeText, { color: tone }]}>
-              {payment.status_label}
-            </Text>
-          </View>
+          <StatusBadge label={payment.status_label} status={payment.computed_status} />
         </View>
       </View>
-    </Card>
+    </AppCard>
   );
 }
 
@@ -78,6 +57,4 @@ const styles = StyleSheet.create({
   days: { fontSize: 12, marginTop: 4, fontWeight: "600" },
   right: { alignItems: "flex-end", gap: 4 },
   amount: { fontSize: 16, fontWeight: "800" },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  badgeText: { fontSize: 11, fontWeight: "700" },
 });
