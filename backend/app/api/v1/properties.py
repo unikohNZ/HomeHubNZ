@@ -138,10 +138,5 @@ async def upload_property_photo(
     service = PropertyService(db)
     content = await file.read()
     ext = (file.filename or "photo.jpg").split(".")[-1]
-    url = await storage_service.upload_bytes(
-        content,
-        folder=f"properties/{property_id}",
-        filename=f"photo.{ext}",
-        content_type=file.content_type or f"image/{ext}",
-    )
+    url = await storage_service.upload_property_photo(content, property_id, ext)
     return await service.update_photo(property_id, url, current_user)

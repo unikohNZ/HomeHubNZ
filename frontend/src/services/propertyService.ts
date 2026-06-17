@@ -10,7 +10,8 @@ import {
   toApiUpdatePayload,
 } from "../utils/propertyMapper";
 import api, { API_V1_URL, getApiErrorMessage } from "./api";
-import { tokenStorage } from "./tokenStorage";
+import { getToken, saveToken } from "./tokenStorage";
+import { isMockMode } from "../utils/dataSource";
 
 export type PropertyDataSource = "api" | "mock";
 
@@ -46,7 +47,7 @@ async function tryDevLogin(): Promise<boolean> {
       email,
       password,
     });
-    await tokenStorage.setTokens(data.access_token, data.refresh_token);
+    await saveToken(data.access_token, data.refresh_token);
     return true;
   } catch {
     return false;
@@ -54,7 +55,7 @@ async function tryDevLogin(): Promise<boolean> {
 }
 
 async function ensureAuth(): Promise<void> {
-  const token = await tokenStorage.getAccessToken();
+  const token = await getToken();
   if (token) return;
   await tryDevLogin();
 }
@@ -68,6 +69,13 @@ function withMockFallback(
   if (cached?.length) {
     return {
       data: cached,
+      source: "api",
+      error: reason ?? getApiErrorMessage(error),
+    };
+  }
+  if (!isMockMode()) {
+    return {
+      data: [],
       source: "api",
       error: reason ?? getApiErrorMessage(error),
     };

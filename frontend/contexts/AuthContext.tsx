@@ -11,7 +11,7 @@ import { validateDemoLogin } from "../data/demoAccounts";
 import { FLATMATE_USER, LANDLORD_USER } from "../data/mockUsers";
 import { queryClient } from "../src/lib/queryClient";
 import api from "../src/services/api";
-import { tokenStorage } from "../src/services/tokenStorage";
+import { getToken, removeToken, saveToken } from "../src/services/tokenStorage";
 import { isMockMode } from "../src/utils/dataSource";
 import { DemoRole } from "../types";
 import { User, UserRole } from "../types/user";
@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
     (async () => {
       if (!isMockMode()) {
-        const token = await tokenStorage.getAccessToken();
+        const token = await getToken();
         if (token && token !== "demo-token") {
           try {
             const { data } = await api.get("/auth/me");
@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setIsLoading(false);
             return;
           } catch {
-            await tokenStorage.clearTokens();
+            await removeToken();
           }
         }
       }
@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!active) return;
       if (session) {
         setUser(session.user);
-        await tokenStorage.setTokens(session.token, session.token);
+        await saveToken(session.token, session.token);
       }
       setIsLoading(false);
     })();
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "/auth/login",
         { email, password },
       );
-      await tokenStorage.setTokens(tokens.access_token, tokens.refresh_token);
+      await saveToken(tokens.access_token, tokens.refresh_token);
       const { data: me } = await api.get("/auth/me");
       const mapped = mapApiUser(me);
       if (rememberMe) {
@@ -131,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Invalid email or password. Try the demo accounts.");
     }
     const token = `hh_token_${demoUser.id}_${Date.now()}`;
-    await tokenStorage.setTokens(token, token);
+    await saveToken(token, token);
     if (rememberMe) {
       await authStorage.saveSession(demoUser, token, true);
     } else {
@@ -169,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       verified: false,
     };
     const token = `hh_token_${newUser.id}_${Date.now()}`;
-    await tokenStorage.setTokens(token, token);
+    await saveToken(token, token);
     await authStorage.saveSession(newUser, token, true);
     setUser(newUser);
   }, []);
@@ -183,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     await authStorage.clearSession();
-    await tokenStorage.clearTokens();
+    await removeToken();
     setUser(null);
     queryClient.clear();
   }, []);
@@ -200,7 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ? { ...LANDLORD_USER, email: user.email, name: user.name, avatar_url: user.avatar_url }
           : { ...FLATMATE_USER, email: user.email, name: user.name, avatar_url: user.avatar_url };
       const token = `hh_token_${next.id}_${Date.now()}`;
-      await tokenStorage.setTokens(token, token);
+      await saveToken(token, token);
       const remember = await authStorage.getSession();
       if (remember) {
         await authStorage.saveSession(next, token, true);

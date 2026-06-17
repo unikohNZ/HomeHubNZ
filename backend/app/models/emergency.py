@@ -18,7 +18,7 @@ class EmergencyContact(Base, TimestampMixin):
     property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     phone: Mapped[str] = mapped_column(String(30), nullable=False)
-    relationship: Mapped[Optional[str]] = mapped_column(String(100))
+    relation: Mapped[Optional[str]] = mapped_column("relationship", String(100))
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text)
 

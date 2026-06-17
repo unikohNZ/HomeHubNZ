@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import { authColors } from "./authTheme";
 import { spacing } from "../../constants/design";
+import { platformShadow } from "../../utils/platformShadow";
 
 interface AuthLogoHeaderProps {
   subtitle?: string;
@@ -34,11 +35,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.md,
-    shadowColor: "#04142D",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
+    ...platformShadow("0px 4px 12px rgba(4, 20, 45, 0.1)", {
+      shadowColor: "#04142D",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      elevation: 4,
+    }),
   },
   icon: { fontSize: 36 },
   brand: {

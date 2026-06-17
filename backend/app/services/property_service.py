@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.property import Property
+from app.models.property_image import PropertyImage
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.repositories.property import PropertyRepository
@@ -114,7 +115,22 @@ class PropertyService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Property not found")
         if prop.owner_id != user.id and user.role.name != "admin":
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+        # Mark existing primary images as non-primary
+        loaded = await self.property_repo.get_with_relations(property_id)
+        if loaded and loaded.images:
+            for img in loaded.images:
+                if img.is_primary:
+                    img.is_primary = False
+
         prop.image_url = image_url
+        image_row = PropertyImage(
+            property_id=property_id,
+            url=image_url,
+            is_primary=True,
+            sort_order=0,
+        )
+        self.db.add(image_row)
         prop = await self.property_repo.update(prop)
         loaded = await self.property_repo.get_with_relations(property_id)
         return self._to_response(loaded or prop)
@@ -153,13 +169,10 @@ class PropertyService:
 
     def _to_response(self, prop: Property) -> PropertyResponse:
         image_urls: Optional[list[str]] = None
-        if prop.image_url:
+        if prop.images:
+            image_urls = [img.url for img in sorted(prop.images, key=lambda i: (not i.is_primary, i.sort_order))]
+        elif prop.image_url:
             image_urls = [prop.image_url]
-        elif hasattr(prop, "image_urls") and prop.image_urls:
-            try:
-                image_urls = json.loads(prop.image_urls)
-            except (json.JSONDecodeError, TypeError):
-                image_urls = []
 
         flatmate_count = self._flatmate_count(prop)
         occupancy = f"{flatmate_count}/{prop.max_flatmates}"
@@ -190,4 +203,4 @@ class PropertyService:
             address_line1=prop.address_line1,
             rent_amount=prop.rent_amount,
         )
-
+

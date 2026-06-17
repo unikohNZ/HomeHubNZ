@@ -1,45 +1,47 @@
-import api from "./api";
-import { MaintenanceRequest } from "@/types";
-import { MOCK_MAINTENANCE } from "@/data/mockData";
+import { MaintenanceRequest } from "../../types/flat";
+import { MOCK_MAINTENANCE } from "../../data/mockFlatData";
+import { DataResult, isMockMode, resolveOfflineData } from "../utils/dataSource";
+import api, { getApiErrorMessage } from "./api";
 
-const USE_MOCK = true;
-const delay = (ms = 500) => new Promise((r) => setTimeout(r, ms));
-
-export type NewMaintenanceInput = Omit<
-  MaintenanceRequest,
-  "id" | "created_at" | "status"
->;
+export type NewMaintenanceInput = {
+  property_id: number;
+  title: string;
+  description: string;
+  category?: string;
+  priority?: string;
+};
 
 export const maintenanceService = {
-  async list(): Promise<MaintenanceRequest[]> {
-    if (USE_MOCK) {
-      await delay();
-      return MOCK_MAINTENANCE;
+  async list(propertyId: number, cached?: MaintenanceRequest[]): Promise<DataResult<MaintenanceRequest[]>> {
+    if (isMockMode()) {
+      await new Promise((r) => setTimeout(r, 300));
+      return { data: MOCK_MAINTENANCE, source: "mock" };
     }
-    const { data } = await api.get("/maintenance");
-    return data;
-  },
-
-  async get(id: number): Promise<MaintenanceRequest | undefined> {
-    if (USE_MOCK) {
-      await delay(200);
-      return MOCK_MAINTENANCE.find((m) => m.id === id);
+    try {
+      const { data } = await api.get<MaintenanceRequest[]>("/maintenance", {
+        params: { property_id: propertyId },
+      });
+      return { data: data ?? [], source: "api" };
+    } catch (error) {
+      return resolveOfflineData(cached, MOCK_MAINTENANCE, getApiErrorMessage(error));
     }
-    const { data } = await api.get(`/maintenance/${id}`);
-    return data;
   },
 
   async create(input: NewMaintenanceInput): Promise<MaintenanceRequest> {
-    if (USE_MOCK) {
-      await delay();
+    if (isMockMode()) {
       return {
-        ...input,
-        id: Date.now(),
+        id: String(Date.now()),
+        property_id: String(input.property_id),
+        title: input.title,
+        description: input.description,
+        category: input.category as MaintenanceRequest["category"],
+        priority: input.priority as MaintenanceRequest["priority"],
         status: "submitted",
+        submitted_by: "You",
         created_at: new Date().toISOString(),
       };
     }
-    const { data } = await api.post("/maintenance", input);
+    const { data } = await api.post<MaintenanceRequest>("/maintenance", input);
     return data;
   },
 };

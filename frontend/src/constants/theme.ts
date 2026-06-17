@@ -4,6 +4,9 @@
  * green success, and orange warning — inspired by Linear, Revolut and Stripe.
  */
 
+import { ViewStyle } from "react-native";
+import { platformShadow } from "../../utils/platformShadow";
+
 export const colors = {
   // Backgrounds
   background: "#060d1f",
@@ -75,21 +78,30 @@ export const typography = {
   caption: { fontSize: 12, fontWeight: "500" as const },
 } as const;
 
+type NativeShadow = Pick<
+  ViewStyle,
+  "shadowColor" | "shadowOffset" | "shadowOpacity" | "shadowRadius" | "elevation"
+>;
+
+function makeShadow(webBoxShadow: string, native: NativeShadow) {
+  return platformShadow(webBoxShadow, native);
+}
+
 export const shadow = {
-  card: {
+  card: makeShadow("0px 8px 24px rgba(0, 0, 0, 0.12)", {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25,
     shadowRadius: 16,
     elevation: 6,
-  },
-  floating: {
+  }),
+  floating: makeShadow("0px 16px 28px rgba(0, 0, 0, 0.4)", {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.4,
     shadowRadius: 28,
     elevation: 16,
-  },
+  }),
 } as const;
 
 export const theme = { colors, spacing, radius, typography, shadow };

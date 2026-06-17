@@ -10,7 +10,7 @@ export interface DataResult<T> {
   error?: string;
 }
 
-/** Prefer cached API data over mock when backend is unreachable. */
+/** Prefer cached API data over mock when backend is unreachable. Never inject mock when API mode is on. */
 export function resolveOfflineData<T>(
   cached: T | undefined,
   mock: T,
@@ -22,5 +22,10 @@ export function resolveOfflineData<T>(
   if (isMockMode()) {
     return { data: mock, source: "mock", error };
   }
-  return { data: cached ?? mock, source: cached !== undefined ? "cache" : "mock", error };
+  const empty = Array.isArray(mock) ? ([] as T) : mock;
+  return {
+    data: empty,
+    source: "cache",
+    error: error ?? "Backend unavailable",
+  };
 }

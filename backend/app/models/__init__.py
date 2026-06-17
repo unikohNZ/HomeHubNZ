@@ -1,7 +1,7 @@
 """Register all ORM models so Alembic and create_all discover every table."""
 
 from app.models.bill import Bill, Expense
-from app.models.chat import ChatRoom, Message
+from app.models.chat import ChatRoom, Message, ReadReceipt
 from app.models.document import Document
 from app.models.emergency import EmergencyAlert, EmergencyContact
 from app.models.event import Event
@@ -38,6 +38,7 @@ __all__ = [
     "Document",
     "ChatRoom",
     "Message",
+    "ReadReceipt",
     "Notification",
     "Bill",
     "Expense",

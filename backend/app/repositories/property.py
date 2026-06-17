@@ -81,6 +81,7 @@ class PropertyRepository(BaseRepository[Property]):
                 selectinload(Property.tenants),
                 selectinload(Property.flatmates),
                 selectinload(Property.leases),
+                selectinload(Property.images),
             )
             .where(Property.id == property_id)
         )

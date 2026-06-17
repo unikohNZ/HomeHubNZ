@@ -8,7 +8,7 @@ import {
 } from "../utils/chatMapper";
 import { DataResult, isMockMode, resolveOfflineData } from "../utils/dataSource";
 import api, { getApiErrorMessage } from "./api";
-import { tokenStorage } from "./tokenStorage";
+import { getToken } from "./tokenStorage";
 
 let usingApi = false;
 
@@ -24,7 +24,7 @@ export const messageService = {
     }
 
     try {
-      const token = await tokenStorage.getAccessToken();
+      const token = await getToken();
       if (!token) throw new Error("Not authenticated");
       const { data } = await api.get<ApiChatRoom[]>("/chat/rooms");
       usingApi = true;
@@ -127,6 +127,44 @@ export const messageService = {
     } as unknown as Blob);
     const { data } = await api.post<ApiChatMessage>(
       `/chat/rooms/${numericId}/messages/image`,
+      form,
+      { headers: { "Content-Type": "multipart/form-data" } },
+    );
+    usingApi = true;
+    return {
+      data: mapApiMessageToChat(data, currentUserId),
+      source: "api",
+    };
+  },
+
+  async sendDocument(
+    roomId: string,
+    file: { uri: string; name: string; type: string },
+    currentUserId?: number,
+  ): Promise<DataResult<ChatMessage>> {
+    if (isMockMode()) {
+      const msg: ChatMessage = {
+        id: String(Date.now()),
+        conversation_id: roomId,
+        sender_name: "You",
+        content: "",
+        created_at: new Date().toISOString(),
+        is_mine: true,
+        type: "document",
+        attachment_name: file.name,
+      };
+      return { data: msg, source: "mock" };
+    }
+
+    const numericId = parseInt(roomId, 10);
+    const form = new FormData();
+    form.append("file", {
+      uri: file.uri,
+      name: file.name,
+      type: file.type,
+    } as unknown as Blob);
+    const { data } = await api.post<ApiChatMessage>(
+      `/chat/rooms/${numericId}/messages/document`,
       form,
       { headers: { "Content-Type": "multipart/form-data" } },
     );

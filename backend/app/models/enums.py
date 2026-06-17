@@ -86,8 +86,11 @@ class MessageType(str, enum.Enum):
 class NotificationType(str, enum.Enum):
     MESSAGE = "message"
     RENT = "rent"
+    RENT_DUE = "rent_due"
     MAINTENANCE = "maintenance"
     PROPERTY = "property"
+    INSPECTION = "inspection"
+    LEASE_EXPIRY = "lease_expiry"
     EMERGENCY = "emergency"
     JOIN_REQUEST = "join_request"
     HOUSE_RULES = "house_rules"
@@ -95,6 +98,7 @@ class NotificationType(str, enum.Enum):
 
 
 class BillStatus(str, enum.Enum):
+    UNPAID = "unpaid"
     PENDING = "pending"
     PAID = "paid"
     OVERDUE = "overdue"

@@ -1,37 +1,44 @@
-import { useCallback, useEffect, useState } from "react";
-import { notificationService } from "../services/notificationService";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppNotification } from "../../types/flat";
-import { MOCK_NOTIFICATIONS } from "../../data/mockFlatData";
+import { queryKeys } from "../lib/queryClient";
+import { notificationService } from "../services/notificationService";
 
-interface UseNotificationsResult {
-  notifications: AppNotification[];
-  loading: boolean;
-  isOffline: boolean;
-  refresh: () => Promise<void>;
-}
+export function useNotifications(enabled = true) {
+  const queryClient = useQueryClient();
+  const query = useQuery({
+    queryKey: queryKeys.notifications.all,
+    enabled,
+    queryFn: async () => {
+      const cached = queryClient.getQueryData<{ data: AppNotification[] }>(
+        queryKeys.notifications.all,
+      );
+      return notificationService.list(cached?.data);
+    },
+    placeholderData: (prev) => prev,
+  });
 
-export function useNotifications(): UseNotificationsResult {
-  const [notifications, setNotifications] = useState<AppNotification[]>(MOCK_NOTIFICATIONS);
-  const [loading, setLoading] = useState(true);
-  const [isOffline, setIsOffline] = useState(false);
+  const markRead = useMutation({
+    mutationFn: (id: string) => notificationService.markRead(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+    },
+  });
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await notificationService.list();
-      setNotifications(data);
-      setIsOffline(false);
-    } catch {
-      setNotifications(MOCK_NOTIFICATIONS);
-      setIsOffline(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const markAllRead = useMutation({
+    mutationFn: () => notificationService.markAllRead(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+    },
+  });
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  return { notifications, loading, isOffline, refresh };
+  return {
+    notifications: query.data?.data ?? [],
+    source: query.data?.source,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.data?.error,
+    refetch: query.refetch,
+    markRead: markRead.mutate,
+    markAllRead: markAllRead.mutate,
+  };
 }

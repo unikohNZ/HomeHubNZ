@@ -1,7 +1,8 @@
 import { ReactNode } from "react";
-import { Platform, Pressable, StyleSheet, View, ViewStyle } from "react-native";
+import { Pressable, StyleSheet, View, ViewStyle } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { radius } from "../constants/design";
+import { platformShadow } from "../utils/platformShadow";
 
 interface CardProps {
   children: ReactNode;
@@ -17,7 +18,7 @@ export function Card({ children, elevated, onPress, style }: CardProps) {
     {
       backgroundColor: elevated ? theme.cardElevated : theme.card,
       borderColor: theme.border,
-      ...(Platform.OS !== "web" && {
+      ...platformShadow("0px 8px 24px rgba(0, 0, 0, 0.12)", {
         shadowColor: theme.shadow,
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.12,

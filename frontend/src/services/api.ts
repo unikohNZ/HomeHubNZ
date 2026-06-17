@@ -1,5 +1,14 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
-import { tokenStorage } from "./tokenStorage";
+import { storage } from "../../storage/storage";
+import {
+  ACCESS_TOKEN_KEY,
+  REFRESH_TOKEN_KEY,
+  getToken,
+  removeToken,
+  saveToken,
+} from "./tokenStorage";
+
+export { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from "./tokenStorage";
 
 /**
  * Central Axios instance for HomeHub NZ.
@@ -26,9 +35,6 @@ function resolveApiBaseUrl(): string {
 export const API_BASE_URL = resolveApiBaseUrl();
 export const API_V1_URL = `${API_BASE_URL}/api/v1`;
 
-export const ACCESS_TOKEN_KEY = "homehub_access_token";
-export const REFRESH_TOKEN_KEY = "homehub_refresh_token";
-
 const api = axios.create({
   baseURL: API_V1_URL,
   headers: { "Content-Type": "application/json" },
@@ -36,7 +42,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
-  const token = await tokenStorage.getAccessToken();
+  const token = await getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -52,17 +58,17 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && original && !original._retry) {
       original._retry = true;
-      const refreshToken = await tokenStorage.getRefreshToken();
+      const refreshToken = await storage.getItem(REFRESH_TOKEN_KEY);
       if (refreshToken) {
         try {
           const { data } = await axios.post(`${API_V1_URL}/auth/refresh`, {
             refresh_token: refreshToken,
           });
-          await tokenStorage.setTokens(data.access_token, data.refresh_token);
+          await saveToken(data.access_token, data.refresh_token);
           original.headers.Authorization = `Bearer ${data.access_token}`;
           return api(original);
         } catch {
-          await tokenStorage.clearTokens();
+          await removeToken();
         }
       }
     }

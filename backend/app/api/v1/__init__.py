@@ -6,6 +6,7 @@ from app.api.v1 import (
     bills,
     calendar,
     chat,
+    documents,
     house_rules,
     inspections,
     join_requests,
@@ -25,6 +26,7 @@ api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(users.router, prefix="/users", tags=["Users"])
 api_router.include_router(profile.router, prefix="/profile", tags=["Profile"])
 api_router.include_router(properties.router, prefix="/properties", tags=["Properties"])
+api_router.include_router(documents.router, prefix="/documents", tags=["Documents"])
 api_router.include_router(join_requests.router, prefix="/join-requests", tags=["Join Requests"])
 api_router.include_router(house_rules.router, prefix="/house-rules", tags=["House Rules"])
 api_router.include_router(rent.router, prefix="/rent", tags=["Rent"])

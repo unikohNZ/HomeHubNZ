@@ -2,6 +2,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { DemoRole, TabId } from "../types";
 import { radius, spacing, touchTarget } from "../constants/design";
+import { platformShadow } from "../utils/platformShadow";
 
 const FLATMATE_TABS: { id: TabId; label: string; icon: string }[] = [
   { id: "home", label: "Home", icon: "🏠" },
@@ -45,7 +46,7 @@ export function BottomNavigation({
           backgroundColor: theme.surface,
           borderTopColor: theme.border,
           paddingBottom: Platform.OS === "ios" ? 26 : 14,
-          ...(Platform.OS !== "web" && {
+          ...platformShadow("0px -4px 12px rgba(0, 0, 0, 0.15)", {
             shadowColor: theme.shadow,
             shadowOffset: { width: 0, height: -4 },
             shadowOpacity: 0.15,

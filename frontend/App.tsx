@@ -63,6 +63,8 @@ import {
   useTenantPayments,
   useMarkTenantPaid,
 } from "./hooks/useRentPaymentsData";
+import { useNotifications } from "./src/hooks/useNotifications";
+import { isMockMode } from "./src/utils/dataSource";
 import { useHouseRules } from "./src/hooks/useProperties";
 import { queryClient, queryKeys } from "./src/lib/queryClient";
 import { ChatScreen } from "./screens/ChatScreen";
@@ -162,14 +164,23 @@ function HomeHubApp() {
 
   const currentUserId = user ? parseInt(user.id, 10) : undefined;
   const conversationsQuery = useConversations();
-  const conversations = conversationsQuery.data?.data ?? MOCK_CONVERSATIONS;
+  const conversations =
+    conversationsQuery.data?.data ?? (isMockMode() ? MOCK_CONVERSATIONS : []);
   const messagesUsingCache = conversationsQuery.data?.source === "cache";
 
   const rentQuery = useRentPayments();
-  const rentPayments = rentQuery.data?.data ?? MOCK_RENT_PAYMENTS;
+  const rentPayments = rentQuery.data?.data ?? (isMockMode() ? MOCK_RENT_PAYMENTS : []);
 
   const tenantPaymentsQuery = useTenantPayments();
-  const tenantPayments = tenantPaymentsQuery.data?.data ?? MOCK_TENANT_PAYMENTS;
+  const tenantPayments =
+    tenantPaymentsQuery.data?.data ?? (isMockMode() ? MOCK_TENANT_PAYMENTS : []);
+
+  const {
+    notifications,
+    markRead: markNotificationRead,
+    markAllRead: markAllNotificationsRead,
+    refetch: refetchNotifications,
+  } = useNotifications();
 
   const activeMessagesQuery = useChatMessages(
     activeChatId,
@@ -183,7 +194,6 @@ function HomeHubApp() {
   );
   const markPaidMutation = useMarkTenantPaid();
 
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
   const [houseRules, setHouseRules] = useState(MOCK_HOUSE_RULES);
   const [chores, setChores] = useState(MOCK_CHORES);
   const [bills, setBills] = useState(MOCK_SHARED_BILLS);
@@ -221,6 +231,7 @@ function HomeHubApp() {
   const [form, setForm] = useState<PropertyFormData>(EMPTY_PROPERTY_FORM);
   const [leftFlat, setLeftFlat] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [previousTab, setPreviousTab] = useState<TabId>("home");
 
   useEffect(() => {
     setTab("home");
@@ -237,6 +248,7 @@ function HomeHubApp() {
       queryClient.invalidateQueries({ queryKey: queryKeys.rent.payments }),
       queryClient.invalidateQueries({ queryKey: queryKeys.rentPayments }),
       queryClient.invalidateQueries({ queryKey: queryKeys.profile.me }),
+      refetchNotifications(),
     ]);
     setRefreshing(false);
   };
@@ -322,6 +334,9 @@ function HomeHubApp() {
   }, [properties, searchQuery]);
 
   const openSubScreen = (screen: SubScreen) => {
+    if (screen === "profile" && tab !== "profile") {
+      setPreviousTab(tab);
+    }
     setSubScreen(screen);
     setOverlay(null);
     setActiveChatId(null);
@@ -656,10 +671,31 @@ function HomeHubApp() {
   };
 
   const navigateTab = (t: TabId) => {
+    if (t !== "profile") {
+      setPreviousTab(tab === "profile" ? previousTab : tab);
+    }
     setTab(t);
     setSubScreen(null);
     setOverlay(null);
     setActiveChatId(null);
+  };
+
+  const goBackFromProfile = () => {
+    if (subScreen === "profile") {
+      closeSubScreen();
+      return;
+    }
+    if (tab === "profile") {
+      navigateTab(previousTab === "profile" ? "home" : previousTab);
+      return;
+    }
+    closeSubScreen();
+    navigateTab("home");
+  };
+
+  const goHomeFromProfile = () => {
+    closeSubScreen();
+    navigateTab("home");
   };
 
   const openChat = (id: string) => {
@@ -721,12 +757,11 @@ function HomeHubApp() {
   const flatFeatureActions = {
     onBack: closeSubScreen,
     onMarkNotificationRead: (id: string) => {
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-      );
+      markNotificationRead(id);
+      showToast("Notification marked read");
     },
     onMarkAllNotificationsRead: () => {
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      markAllNotificationsRead();
       showToast("All notifications marked read");
     },
     onMessageFlatmate: (conversationId: string) => {
@@ -983,11 +1018,13 @@ function HomeHubApp() {
       unreadNotifications={unreadNotifications}
       isDark={isDark}
       backendOffline={propertiesOffline || messagesUsingCache}
-      onRetryBackend={reloadProperties}
+      onRetryBackend={handleRefresh}
       onToggleTheme={toggleTheme}
       onSwitchRole={switchRole}
       onNavigate={openSubScreen}
       onNavigateMyFlat={() => navigateTab("myflat")}
+      onBack={goBackFromProfile}
+      onGoHome={goHomeFromProfile}
     />
   );
 
@@ -1320,7 +1357,8 @@ function HomeHubApp() {
     }
   };
 
-  const hideNav = overlay !== null || subScreen !== null;
+  const hideNav =
+    overlay !== null || (subScreen !== null && subScreen !== "profile");
 
   return (
     <View style={[styles.page, { backgroundColor: theme.bg }]}>

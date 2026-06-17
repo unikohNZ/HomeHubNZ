@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from typing import List
 
 from fastapi import APIRouter, Depends, File, Query, UploadFile
@@ -9,9 +10,9 @@ from sqlalchemy.orm import selectinload
 from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.core.permissions import Permission, require_permissions
-from app.models.chat import ChatRoom, Message
+from app.models.chat import ChatRoom, Message, ReadReceipt
 from app.models.user import User
-from app.schemas.chat import ChatRoomCreate, ChatRoomResponse, MessageCreate, MessageResponse
+from app.schemas.chat import ChatRoomCreate, ChatRoomResponse, MessageCreate, MessageResponse, ReadReceiptResponse
 from app.services.supabase_storage_service import storage_service
 
 router = APIRouter()
@@ -25,17 +26,31 @@ def _user_in_room(room: ChatRoom, user_id: int) -> bool:
         return False
 
 
-def _message_response(message: Message, sender_name: str | None = None) -> MessageResponse:
+def _message_response(message: Message, sender_name: str | None = None, sender_avatar_url: str | None = None) -> MessageResponse:
+    read_by = [
+        ReadReceiptResponse(user_id=r.user_id, read_at=r.read_at)
+        for r in (message.read_receipts or [])
+    ]
     return MessageResponse(
         id=message.id,
         room_id=message.room_id,
         sender_id=message.sender_id,
         sender_name=sender_name,
+        sender_avatar_url=sender_avatar_url,
         content=message.content,
         message_type=message.message_type,
         file_url=message.file_url,
+        attachment_name=message.attachment_name,
+        attachment_size=message.attachment_size,
         is_read=message.is_read,
         created_at=message.created_at,
+        read_by=read_by,
+    )
+
+
+async def _touch_last_seen(db: AsyncSession, user_id: int) -> None:
+    await db.execute(
+        update(User).where(User.id == user_id).values(last_seen_at=datetime.now(timezone.utc))
     )
 
 
@@ -49,7 +64,11 @@ async def list_rooms(
     responses = []
     for room in rooms:
         msg_result = await db.execute(
-            select(Message).where(Message.room_id == room.id).order_by(Message.created_at.desc()).limit(1)
+            select(Message)
+            .options(selectinload(Message.sender), selectinload(Message.read_receipts))
+            .where(Message.room_id == room.id)
+            .order_by(Message.created_at.desc())
+            .limit(1)
         )
         last_msg = msg_result.scalar_one_or_none()
         unread_result = await db.execute(
@@ -61,12 +80,14 @@ async def list_rooms(
         )
         last_response = None
         if last_msg:
-            sender_name = None
             if last_msg.sender_id == current_user.id:
                 sender_name = "You"
-            elif last_msg.sender:
-                sender_name = f"{last_msg.sender.first_name} {last_msg.sender.last_name}".strip()
-            last_response = _message_response(last_msg, sender_name)
+                avatar = current_user.avatar_url
+            else:
+                sender = last_msg.sender
+                sender_name = sender.full_name if sender else None
+                avatar = sender.avatar_url if sender else None
+            last_response = _message_response(last_msg, sender_name, avatar)
         responses.append(ChatRoomResponse(
             id=room.id,
             name=room.name,
@@ -112,7 +133,7 @@ async def get_messages(
 
     result = await db.execute(
         select(Message)
-        .options(selectinload(Message.sender))
+        .options(selectinload(Message.sender), selectinload(Message.read_receipts))
         .where(Message.room_id == room_id)
         .order_by(Message.created_at.asc())
         .offset(skip)
@@ -120,6 +141,9 @@ async def get_messages(
     )
     messages = result.scalars().all()
 
+    now = datetime.now(timezone.utc)
+
+    # Bulk-mark messages from others as read
     await db.execute(
         update(Message)
         .where(
@@ -127,15 +151,30 @@ async def get_messages(
             Message.sender_id != current_user.id,
             Message.is_read == False,  # noqa: E712
         )
-        .values(is_read=True)
+        .values(is_read=True, read_at=now)
     )
+
+    # Insert read receipts for unread messages (ignore duplicates)
+    for msg in messages:
+        if msg.sender_id != current_user.id:
+            already_read = any(r.user_id == current_user.id for r in msg.read_receipts)
+            if not already_read:
+                db.add(ReadReceipt(message_id=msg.id, user_id=current_user.id, read_at=now))
+
+    await _touch_last_seen(db, current_user.id)
 
     responses = []
     for m in messages:
-        sender_name = "You" if m.sender_id == current_user.id else None
-        if not sender_name and m.sender:
-            sender_name = f"{m.sender.first_name} {m.sender.last_name}".strip()
-        responses.append(_message_response(m, sender_name))
+        if m.sender_id == current_user.id:
+            sender_name = "You"
+            avatar = current_user.avatar_url
+        elif m.sender:
+            sender_name = m.sender.full_name
+            avatar = m.sender.avatar_url
+        else:
+            sender_name = None
+            avatar = None
+        responses.append(_message_response(m, sender_name, avatar))
     return responses
 
 
@@ -152,11 +191,14 @@ async def send_message(
         content=data.content,
         message_type=data.message_type,
         file_url=data.file_url,
+        attachment_name=data.attachment_name,
+        attachment_size=data.attachment_size,
     )
     db.add(message)
     await db.flush()
     await db.refresh(message)
-    return _message_response(message, "You")
+    await _touch_last_seen(db, current_user.id)
+    return _message_response(message, "You", current_user.avatar_url)
 
 
 @router.post("/rooms/{room_id}/messages/image", response_model=MessageResponse, status_code=201)
@@ -168,7 +210,7 @@ async def send_image_message(
 ):
     content = await file.read()
     filename = file.filename or "image.jpg"
-    ext = filename.split(".")[-1]
+    ext = filename.rsplit(".", 1)[-1]
     url = await storage_service.upload_chat_attachment(
         content,
         room_id,
@@ -181,8 +223,43 @@ async def send_image_message(
         content="",
         message_type="image",
         file_url=url,
+        attachment_name=filename,
+        attachment_size=len(content),
     )
     db.add(message)
     await db.flush()
     await db.refresh(message)
-    return _message_response(message, "You")
+    await _touch_last_seen(db, current_user.id)
+    return _message_response(message, "You", current_user.avatar_url)
+
+
+@router.post("/rooms/{room_id}/messages/document", response_model=MessageResponse, status_code=201)
+async def send_document_message(
+    room_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_permissions(Permission.CHAT_ACCESS)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a PDF/document and attach it as a chat message."""
+    content = await file.read()
+    filename = file.filename or "document"
+    url = await storage_service.upload_chat_attachment(
+        content,
+        room_id,
+        filename,
+        file.content_type or "application/octet-stream",
+    )
+    message = Message(
+        room_id=room_id,
+        sender_id=current_user.id,
+        content="",
+        message_type="document",
+        file_url=url,
+        attachment_name=filename,
+        attachment_size=len(content),
+    )
+    db.add(message)
+    await db.flush()
+    await db.refresh(message)
+    await _touch_last_seen(db, current_user.id)
+    return _message_response(message, "You", current_user.avatar_url)

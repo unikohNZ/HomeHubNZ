@@ -72,3 +72,24 @@ export function useSendImageMessage(currentUserId?: number) {
     },
   });
 }
+
+export function useSendDocumentMessage(currentUserId?: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      roomId,
+      file,
+    }: {
+      roomId: string;
+      file: { uri: string; name: string; type: string };
+    }) => messageService.sendDocument(roomId, file, currentUserId),
+    onSuccess: (result, { roomId }) => {
+      const key = queryKeys.messages.room(Number(roomId) || roomId);
+      queryClient.setQueryData<{ data: ChatMessage[]; source: string }>(key, (old) => ({
+        data: [...(old?.data ?? []), result.data],
+        source: result.source,
+      }));
+      queryClient.invalidateQueries({ queryKey: queryKeys.messages.rooms });
+    },
+  });
+}

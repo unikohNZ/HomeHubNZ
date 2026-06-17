@@ -1,4 +1,4 @@
-import { Conversation, ChatMessage } from "../../types/message";
+import { ChatMessage, ChatMessageType, Conversation, ReadReceipt } from "../../types/message";
 
 const AVATAR_COLORS = ["#3b82f6", "#22c55e", "#a855f7", "#f59e0b", "#4F8CFF", "#ef4444"];
 
@@ -7,6 +7,11 @@ export function avatarColorFor(name: string, id?: number | string): string {
   let hash = 0;
   for (let i = 0; i < seed.length; i++) hash = seed.charCodeAt(i) + ((hash << 5) - hash);
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+export interface ApiReadReceipt {
+  user_id: number;
+  read_at: string;
 }
 
 export interface ApiChatRoom {
@@ -23,14 +28,18 @@ export interface ApiChatMessage {
   room_id: number;
   sender_id: number;
   sender_name?: string | null;
+  sender_avatar_url?: string | null;
   content: string;
   message_type: string;
   file_url?: string | null;
+  attachment_name?: string | null;
+  attachment_size?: number | null;
   is_read: boolean;
   created_at: string;
+  read_by?: ApiReadReceipt[];
 }
 
-function formatRelativeTime(iso: string): string {
+export function formatRelativeTime(iso: string): string {
   const date = new Date(iso);
   const diffMs = Date.now() - date.getTime();
   const mins = Math.floor(diffMs / 60000);
@@ -49,6 +58,7 @@ export function mapApiRoomToConversation(room: ApiChatRoom, _currentUserId?: num
   let lastMessage = "No messages yet";
   if (last) {
     if (last.message_type === "image") lastMessage = "📷 Photo";
+    else if (last.message_type === "document") lastMessage = `📎 ${last.attachment_name ?? "Document"}`;
     else lastMessage = last.content;
   }
   const category =
@@ -69,15 +79,37 @@ export function mapApiRoomToConversation(room: ApiChatRoom, _currentUserId?: num
 
 export function mapApiMessageToChat(msg: ApiChatMessage, currentUserId?: number): ChatMessage {
   const isMine = currentUserId ? msg.sender_id === currentUserId : msg.sender_name === "You";
-  const isImage = msg.message_type === "image";
+  const msgType = (msg.message_type === "image" || msg.message_type === "document"
+    ? msg.message_type
+    : "text") as ChatMessageType;
+
+  const readBy: ReadReceipt[] = (msg.read_by ?? []).map((r) => ({
+    user_id: r.user_id,
+    read_at: r.read_at,
+  }));
+
   return {
     id: String(msg.id),
     conversation_id: String(msg.room_id),
+    sender_id: msg.sender_id,
     sender_name: msg.sender_name ?? (isMine ? "You" : "User"),
+    sender_avatar_url: msg.sender_avatar_url ?? undefined,
     content: msg.content,
     created_at: msg.created_at,
     is_mine: isMine,
-    type: isImage ? "image" : "text",
-    image_uri: isImage ? msg.file_url ?? undefined : undefined,
+    type: msgType,
+    image_uri: msgType === "image" ? msg.file_url ?? undefined : undefined,
+    file_url: msg.file_url ?? undefined,
+    attachment_name: msg.attachment_name ?? undefined,
+    attachment_size: msg.attachment_size ?? undefined,
+    read_by: readBy,
   };
+}
+
+/** Map a raw WebSocket message.new payload → ChatMessage */
+export function mapWsMessageToChat(
+  payload: ApiChatMessage,
+  currentUserId?: number,
+): ChatMessage {
+  return mapApiMessageToChat(payload, currentUserId);
 }

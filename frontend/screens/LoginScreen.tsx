@@ -18,6 +18,8 @@ import { useAuthFlowNavigation } from "../contexts/AuthFlowContext";
 import { DEMO_FLATMATE_EMAIL, DEMO_PASSWORD } from "../data/demoAccounts";
 import { useAuth } from "../contexts/AuthContext";
 import { spacing, touchTarget } from "../constants/design";
+import { USE_NATIVE_DRIVER } from "../utils/animation";
+import { platformShadow } from "../utils/platformShadow";
 
 const CARD_RADIUS = 28;
 
@@ -41,26 +43,26 @@ export function LoginScreen() {
         Animated.timing(logoOpacity, {
           toValue: 1,
           duration: 520,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
         Animated.spring(logoY, {
           toValue: 0,
           friction: 8,
           tension: 60,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
       ]),
       Animated.parallel([
         Animated.timing(cardOpacity, {
           toValue: 1,
           duration: 480,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
         Animated.spring(cardY, {
           toValue: 0,
           friction: 8,
           tension: 50,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
       ]),
     ]).start();
@@ -215,13 +217,15 @@ const styles = StyleSheet.create({
     maxWidth: 430,
     alignSelf: "center",
     marginBottom: spacing.lg,
-    shadowColor: "#04142D",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.14,
-    shadowRadius: 28,
-    elevation: 8,
     borderWidth: Platform.OS === "web" ? 1 : 0,
     borderColor: "rgba(4, 20, 45, 0.06)",
+    ...platformShadow("0px 12px 28px rgba(4, 20, 45, 0.14)", {
+      shadowColor: "#04142D",
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.14,
+      shadowRadius: 28,
+      elevation: 8,
+    }),
   },
   cardTitle: {
     fontSize: 24,
@@ -282,11 +286,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.sm,
-    shadowColor: authColors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 4,
+    ...platformShadow("0px 6px 12px rgba(79, 140, 255, 0.35)", {
+      shadowColor: authColors.primary,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.35,
+      shadowRadius: 12,
+      elevation: 4,
+    }),
   },
   primaryText: {
     color: "#FFFFFF",
@@ -301,11 +307,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.md,
-    shadowColor: "#FFD84D",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 2,
+    ...platformShadow("0px 4px 8px rgba(255, 216, 77, 0.4)", {
+      shadowColor: "#FFD84D",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.4,
+      shadowRadius: 8,
+      elevation: 2,
+    }),
   },
   secondaryText: {
     color: authColors.navy,

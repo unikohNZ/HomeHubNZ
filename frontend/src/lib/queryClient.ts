@@ -51,7 +51,7 @@ export const queryKeys = {
   messages: {
     all: ["messages"] as const,
     rooms: ["messages", "rooms"] as const,
-    room: (id: number) => ["messages", "room", id] as const,
+    room: (id: string | number) => ["messages", "room", id] as const,
   },
   auth: {
     me: ["auth", "me"] as const,
@@ -62,5 +62,11 @@ export const queryKeys = {
   },
   profile: {
     me: ["profile", "me"] as const,
+  },
+  maintenance: {
+    list: (propertyId: number | null) => ["maintenance", propertyId] as const,
+  },
+  documents: {
+    property: (id: number) => ["documents", "property", id] as const,
   },
 } as const;

@@ -1,9 +1,6 @@
 import uuid
 from typing import Optional
 
-import boto3
-from botocore.exceptions import ClientError
-
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -11,6 +8,15 @@ settings = get_settings()
 
 class S3Service:
     def __init__(self):
+        try:
+            import boto3
+            from botocore.exceptions import ClientError
+        except ImportError as exc:
+            raise RuntimeError(
+                "boto3 is required for S3 uploads. Install with: pip install boto3"
+            ) from exc
+
+        self._client_error = ClientError
         self.client = boto3.client(
             "s3",
             aws_access_key_id=settings.AWS_ACCESS_KEY_ID or None,
@@ -38,12 +44,12 @@ class S3Service:
                 "file_key": key,
                 "public_url": f"https://{self.bucket}.s3.{settings.AWS_REGION}.amazonaws.com/{key}",
             }
-        except ClientError as e:
+        except self._client_error as e:
             raise RuntimeError(f"Failed to generate presigned URL: {e}") from e
 
     def delete_file(self, key: str) -> bool:
         try:
             self.client.delete_object(Bucket=self.bucket, Key=key)
             return True
-        except ClientError:
+        except self._client_error:
             return False

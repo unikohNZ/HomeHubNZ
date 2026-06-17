@@ -1,45 +1,33 @@
-import api from "./api";
 import { AppNotification } from "../../types/flat";
 import { MOCK_NOTIFICATIONS } from "../../data/mockFlatData";
-
-const USE_MOCK = true;
-const delay = (ms = 350) => new Promise((r) => setTimeout(r, ms));
+import { mapApiNotification, ApiNotification } from "../utils/notificationMapper";
+import { DataResult, isMockMode, resolveOfflineData } from "../utils/dataSource";
+import api, { getApiErrorMessage } from "./api";
 
 export const notificationService = {
-  async list(): Promise<AppNotification[]> {
-    if (USE_MOCK) {
-      await delay();
-      return MOCK_NOTIFICATIONS;
+  async list(cached?: AppNotification[]): Promise<DataResult<AppNotification[]>> {
+    if (isMockMode()) {
+      await new Promise((r) => setTimeout(r, 200));
+      return { data: MOCK_NOTIFICATIONS, source: "mock" };
     }
     try {
-      const { data } = await api.get<AppNotification[]>("/notifications");
-      return data?.length ? data : MOCK_NOTIFICATIONS;
-    } catch {
-      return MOCK_NOTIFICATIONS;
+      const { data } = await api.get<ApiNotification[]>("/notifications");
+      return {
+        data: (data ?? []).map(mapApiNotification),
+        source: "api",
+      };
+    } catch (error) {
+      return resolveOfflineData(cached, MOCK_NOTIFICATIONS, getApiErrorMessage(error));
     }
   },
 
   async markRead(id: string): Promise<void> {
-    if (USE_MOCK) {
-      await delay(150);
-      return;
-    }
-    try {
-      await api.post(`/notifications/${id}/read`);
-    } catch {
-      // offline — no-op for now
-    }
+    if (isMockMode()) return;
+    await api.put(`/notifications/${id}/read`);
   },
 
   async markAllRead(): Promise<void> {
-    if (USE_MOCK) {
-      await delay(150);
-      return;
-    }
-    try {
-      await api.post("/notifications/read-all");
-    } catch {
-      // offline — no-op for now
-    }
+    if (isMockMode()) return;
+    await api.put("/notifications/read-all");
   },
 };

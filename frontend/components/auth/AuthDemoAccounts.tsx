@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { DEMO_FLATMATE_EMAIL, DEMO_LANDLORD_EMAIL, DEMO_PASSWORD } from "../../data/demoAccounts";
 import { authColors } from "./authTheme";
 import { spacing } from "../../constants/design";
+import { platformShadow } from "../../utils/platformShadow";
 
 const ACCOUNTS = [
   { role: "Flatmate", email: DEMO_FLATMATE_EMAIL, password: DEMO_PASSWORD, emoji: "🏠" },
@@ -45,11 +46,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.95)",
-    shadowColor: "#04142D",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 3,
+    ...platformShadow("0px 6px 16px rgba(4, 20, 45, 0.08)", {
+      shadowColor: "#04142D",
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.08,
+      shadowRadius: 16,
+      elevation: 3,
+    }),
   },
   title: {
     fontSize: 12,

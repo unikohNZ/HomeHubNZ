@@ -1,13 +1,17 @@
 import logging
 from contextlib import asynccontextmanager
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import get_settings
 from app.core.seed import seed_roles
 from app.database import AsyncSessionLocal, Base, check_database_connection, engine
 from app.api.v1 import api_router
+from app.websocket.chat import router as ws_chat_router
 from app.models import (  # noqa: F401 — register all models with metadata
     ChatRoom,
     Document,
@@ -20,6 +24,7 @@ from app.models import (  # noqa: F401 — register all models with metadata
     Lease,
     MaintenanceRequest,
     Message,
+    ReadReceipt,
     Notification,
     Property,
     PropertyImage,
@@ -74,6 +79,11 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+app.include_router(ws_chat_router)
+
+upload_path = Path(settings.UPLOAD_DIR)
+upload_path.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(upload_path)), name="uploads")
 
 
 @app.get("/")

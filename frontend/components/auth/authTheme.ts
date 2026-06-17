@@ -31,6 +31,7 @@ export function authCardStyle(): ViewStyle {
       web: {
         borderWidth: 1,
         borderColor: "rgba(4, 20, 45, 0.08)",
+        boxShadow: "0px 8px 20px rgba(4, 20, 45, 0.12)",
       },
       default: {
         shadowColor: "#04142D",

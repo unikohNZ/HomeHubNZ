@@ -8,6 +8,7 @@ import {
 } from "react";
 import { Animated, StyleSheet, Text } from "react-native";
 import { colors, radius, shadow, spacing } from "@/constants/theme";
+import { USE_NATIVE_DRIVER } from "../../utils/animation";
 
 interface ToastContextValue {
   showToast: (message: string) => void;
@@ -27,13 +28,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       Animated.timing(opacity, {
         toValue: 1,
         duration: 200,
-        useNativeDriver: true,
+        useNativeDriver: USE_NATIVE_DRIVER,
       }).start();
       timer.current = setTimeout(() => {
         Animated.timing(opacity, {
           toValue: 0,
           duration: 250,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }).start(() => setMessage(null));
       }, 2400);
     },
@@ -44,7 +45,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={{ showToast }}>
       {children}
       {message && (
-        <Animated.View style={[styles.toast, { opacity }]} pointerEvents="none">
+        <Animated.View style={[styles.toast, { opacity, pointerEvents: "none" }]}>
           <Text style={styles.text}>✓ {message}</Text>
         </Animated.View>
       )}

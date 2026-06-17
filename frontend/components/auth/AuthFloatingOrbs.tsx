@@ -11,7 +11,7 @@ const ORBS = [
 
 export function AuthFloatingOrbs() {
   return (
-    <View style={styles.layer} pointerEvents="none">
+    <View style={[styles.layer, { pointerEvents: "none" }]}>
       {ORBS.map((orb, i) => (
         <View
           key={i}

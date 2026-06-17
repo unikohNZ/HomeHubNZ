@@ -30,10 +30,21 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
-    # Supabase Storage (optional — falls back to local URL passthrough in dev)
+    # Supabase Storage (optional — falls back to local disk in dev)
     SUPABASE_URL: str = ""
     SUPABASE_SERVICE_KEY: str = ""
     SUPABASE_STORAGE_BUCKET: str = "homehub-uploads"
+
+    # Local uploads (development) — also used when Supabase is not configured
+    UPLOAD_DIR: str = "uploads"
+    PUBLIC_BASE_URL: str = "http://127.0.0.1:8000"
+
+    # AWS S3 (production — optional)
+    AWS_ACCESS_KEY_ID: str = ""
+    AWS_SECRET_ACCESS_KEY: str = ""
+    AWS_REGION: str = "ap-southeast-2"
+    S3_BUCKET_NAME: str = ""
+    USE_S3: bool = False
 
     # Expo push (optional)
     EXPO_ACCESS_TOKEN: str = ""

@@ -7,6 +7,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { USE_NATIVE_DRIVER } from "../../utils/animation";
 
 interface AuthAnimatedPressableProps extends PressableProps {
   style?: StyleProp<ViewStyle>;
@@ -30,12 +31,12 @@ export function AuthAnimatedPressable({
         toValue: toScale,
         friction: 6,
         tension: 120,
-        useNativeDriver: true,
+        useNativeDriver: USE_NATIVE_DRIVER,
       }),
       Animated.timing(opacity, {
         toValue: toOpacity,
         duration: 120,
-        useNativeDriver: true,
+        useNativeDriver: USE_NATIVE_DRIVER,
       }),
     ]).start();
   };

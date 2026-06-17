@@ -1,8 +1,15 @@
-import { useState } from "react";
-import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useState, type ReactNode } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { ScreenShell } from "../components/ScreenShell";
-import { SectionHeader } from "../components/SectionHeader";
 import { Badge } from "../components/ui/Badge";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -11,14 +18,14 @@ import { FLATMATE_USER, LANDLORD_USER } from "../data/mockUsers";
 import { DemoRole, SubScreen } from "../types";
 import { radius, spacing, touchTarget } from "../constants/design";
 import { pickProfileImage } from "../utils/imagePicker";
+import { initials } from "../utils/format";
 import { useProfile, useUploadAvatar } from "../src/services/profileService";
 import { isMockMode } from "../src/utils/dataSource";
 
 const PROFILE_PHOTO_SIZE = 96;
-
 const SIGN_OUT_BG = "#7F1D1D";
 const SIGN_OUT_BORDER = "#EF4444";
-const TAB_BAR_CLEARANCE = 120;
+const TAB_BAR_CLEARANCE = 140;
 
 interface ProfileScreenProps {
   role: DemoRole;
@@ -33,13 +40,18 @@ interface ProfileScreenProps {
   onSwitchRole: (role: DemoRole) => void;
   onNavigate: (screen: SubScreen) => void;
   onNavigateMyFlat?: () => void;
+  onBack: () => void;
+  onGoHome: () => void;
 }
+
+type DetailModalContent = {
+  title: string;
+  icon: string;
+  body: string;
+};
 
 export function ProfileScreen({
   role,
-  propertyCount,
-  paymentCount,
-  requestCount,
   unreadNotifications,
   isDark,
   backendOffline,
@@ -48,6 +60,8 @@ export function ProfileScreen({
   onSwitchRole,
   onNavigate,
   onNavigateMyFlat,
+  onBack,
+  onGoHome,
 }: ProfileScreenProps) {
   const { theme } = useTheme();
   const { user: authUser, logout, updateUser } = useAuth();
@@ -55,11 +69,14 @@ export function ProfileScreen({
   const profileQuery = useProfile(!isMockMode());
   const uploadAvatar = useUploadAvatar();
   const [showSignOutModal, setShowSignOutModal] = useState(false);
+  const [detailModal, setDetailModal] = useState<DetailModalContent | null>(null);
   const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
   const [pickingPhoto, setPickingPhoto] = useState(false);
 
   const profilePhotoUri =
     localPhotoUri ?? user.avatar_url ?? profileQuery.data?.avatar_url ?? null;
+
+  const openDetail = (content: DetailModalContent) => setDetailModal(content);
 
   const handleChangePhoto = async () => {
     if (pickingPhoto) return;
@@ -85,37 +102,121 @@ export function ProfileScreen({
     }
   };
 
-  const accountItems = [
-    { icon: "🔔", label: "Notifications", screen: "notifications" as SubScreen, badge: unreadNotifications },
-    { icon: "📄", label: "Documents", screen: "documents" as SubScreen },
-    { icon: "🔒", label: "Privacy", screen: "agreement" as SubScreen },
-  ];
-
-  const householdItems: Array<
-    | { icon: string; label: string; action: () => void }
-    | { icon: string; label: string; screen: SubScreen }
-  > = [
-    { icon: "🏠", label: "My Flat", action: () => onNavigateMyFlat?.() },
-    { icon: "📋", label: "House Rules", screen: "house-rules" },
-    { icon: "🆘", label: "Emergency Contacts", screen: "emergency-hub" },
-  ];
-
-  const appItems = [
-    { icon: "ℹ️", label: "About HomeHub NZ", screen: "about" as SubScreen },
-    { icon: "📜", label: "Terms", screen: "agreement" as SubScreen },
-    { icon: "🔐", label: "Privacy Policy", screen: "agreement" as SubScreen },
-  ];
-
   const confirmSignOut = async () => {
     setShowSignOutModal(false);
     await logout();
   };
 
+  const accountItems = [
+    {
+      icon: "✏️",
+      label: "Edit Profile",
+      description: "Update your name and contact details",
+      onPress: () =>
+        openDetail({
+          icon: "✏️",
+          title: "Edit Profile",
+          body: `${user.name}\n${user.email}\n\nFull profile editing is coming soon. Your details are saved to your account when connected to the backend.`,
+        }),
+    },
+    {
+      icon: "📷",
+      label: "Change Profile Photo",
+      description: "Upload a new profile picture",
+      onPress: handleChangePhoto,
+    },
+    {
+      icon: "🔔",
+      label: "Notifications",
+      description: "Alerts, rent reminders, and messages",
+      badge: unreadNotifications,
+      onPress: () =>
+        onNavigate(role === "landlord" ? "landlord-notifications" : "notifications"),
+    },
+    {
+      icon: "📄",
+      label: "Documents",
+      description: "Leases, receipts, and flat files",
+      onPress: () => onNavigate("documents"),
+    },
+    {
+      icon: "🔒",
+      label: "Privacy & Security",
+      description: "Data, permissions, and account safety",
+      onPress: () => onNavigate("agreement"),
+    },
+  ];
+
+  const appItems = [
+    {
+      icon: isDark ? "🌙" : "☀️",
+      label: "Theme",
+      description: "Switch between light and dark mode",
+      value: isDark ? "Dark mode" : "Light mode",
+      onPress: onToggleTheme,
+    },
+    {
+      icon: "🌐",
+      label: "Language",
+      description: "App display language",
+      value: "English (NZ)",
+      onPress: () =>
+        openDetail({
+          icon: "🌐",
+          title: "Language",
+          body: "HomeHub NZ is currently available in English (New Zealand). More languages will be added in future updates.",
+        }),
+    },
+    {
+      icon: "ℹ️",
+      label: "About HomeHub NZ",
+      description: "Version, mission, and product info",
+      onPress: () => onNavigate("about"),
+    },
+    {
+      icon: "💬",
+      label: "Help & Support",
+      description: "FAQs, contact, and troubleshooting",
+      onPress: () =>
+        openDetail({
+          icon: "💬",
+          title: "Help & Support",
+          body: "Need help with rent, your flat, or your account?\n\nEmail: support@homehub.co.nz\nHours: Mon–Fri, 9am–5pm NZST\n\nFor emergencies, use Emergency Contacts in Household Settings.",
+        }),
+    },
+  ];
+
+  const householdItems = [
+    {
+      icon: "🏠",
+      label: "My Flat",
+      description: "Your current flat and flatmates",
+      onPress: () => onNavigateMyFlat?.(),
+    },
+    {
+      icon: "📋",
+      label: "House Rules",
+      description: "Shared household agreements",
+      onPress: () => onNavigate("house-rules"),
+    },
+    {
+      icon: "🆘",
+      label: "Emergency Contacts",
+      description: "Quick access in an emergency",
+      onPress: () => onNavigate("emergency-hub"),
+    },
+  ];
+
   return (
     <>
       <ScreenShell
-        title="Profile"
-        subtitle="Account & preferences"
+        headerContent={
+          <ProfileNavHeader
+            onBack={onBack}
+            onGoHome={onGoHome}
+            theme={theme}
+          />
+        }
         bottomPadding={TAB_BAR_CLEARANCE}
       >
         <View style={[styles.profile, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -138,7 +239,7 @@ export function ProfileScreen({
                   { backgroundColor: user.avatar_color, borderColor: theme.border },
                 ]}
               >
-                <Text style={styles.profileInitials}>UG</Text>
+                <Text style={styles.profileInitials}>{initials(user.name)}</Text>
               </View>
             )}
             <Pressable
@@ -168,98 +269,124 @@ export function ProfileScreen({
               style={{ marginTop: spacing.sm, alignSelf: "flex-start" }}
             />
             {user.verified && (
-              <Badge label="✓ Verified" tone="success" style={{ marginTop: spacing.sm, alignSelf: "flex-start" }} />
+              <Badge
+                label="✓ Verified"
+                tone="success"
+                style={{ marginTop: spacing.sm, alignSelf: "flex-start" }}
+              />
             )}
           </View>
         </View>
 
-        <SectionHeader title="Account" />
-        {accountItems.map((item) => (
-          <ProfileRow
-            key={item.label}
-            icon={item.icon}
-            label={item.label}
-            badge={item.badge}
-            onPress={() => onNavigate(item.screen)}
-          />
-        ))}
-        <ProfileRow
-          icon={isDark ? "🌙" : "☀️"}
-          label="Settings"
-          value={isDark ? "Dark mode" : "Light mode"}
-          onPress={onToggleTheme}
-        />
+        <SettingsSection
+          icon="👤"
+          title="Account Settings"
+          description="Manage your personal information"
+          theme={theme}
+        >
+          {accountItems.map((item) => (
+            <SettingRow key={item.label} {...item} theme={theme} />
+          ))}
+        </SettingsSection>
 
-        <SectionHeader title="Household" />
-        {householdItems.map((item) => (
-          <ProfileRow
-            key={item.label}
-            icon={item.icon}
-            label={item.label}
-            onPress={"action" in item ? item.action : () => onNavigate(item.screen)}
-          />
-        ))}
+        <SettingsSection
+          icon="⚙️"
+          title="App Settings"
+          description="Appearance and app preferences"
+          theme={theme}
+        >
+          {appItems.map((item) => (
+            <SettingRow key={item.label} {...item} theme={theme} />
+          ))}
+        </SettingsSection>
 
-        <SectionHeader title="App" />
-        {appItems.map((item) => (
-          <ProfileRow
-            key={item.label}
-            icon={item.icon}
-            label={item.label}
-            onPress={() => onNavigate(item.screen)}
-          />
-        ))}
-        <View style={[styles.versionRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.rowLabel, { color: theme.text }]}>📱 Version</Text>
-          <Text style={[styles.rowValue, { color: theme.textMuted }]}>v1.0.0</Text>
-        </View>
-        <Text style={[styles.footer, { color: theme.textMuted }]}>{BRAND_TAGLINE}</Text>
+        <SettingsSection
+          icon="🏡"
+          title="Household Settings"
+          description="Your flat and household tools"
+          theme={theme}
+        >
+          {householdItems.map((item) => (
+            <SettingRow key={item.label} {...item} theme={theme} />
+          ))}
+        </SettingsSection>
 
-        <SectionHeader title="Demo / Developer" />
-        <View style={[styles.roleSection, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.roleSub, { color: theme.textSecondary }]}>
-            Preview flatmate or landlord experience
-          </Text>
-          <View style={styles.roleRow}>
-            <Pressable
-              style={[
-                styles.roleBtn,
-                {
-                  backgroundColor: role === "flatmate" ? theme.primary : theme.primaryMuted,
-                  borderColor: theme.primary,
-                },
-              ]}
-              onPress={() => onSwitchRole("flatmate")}
-            >
-              <Text style={[styles.roleBtnText, { color: role === "flatmate" ? "#fff" : theme.primary }]}>
-                Flatmate
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.roleBtn,
-                {
-                  backgroundColor: role === "landlord" ? theme.primary : theme.primaryMuted,
-                  borderColor: theme.primary,
-                },
-              ]}
-              onPress={() => onSwitchRole("landlord")}
-            >
-              <Text style={[styles.roleBtnText, { color: role === "landlord" ? "#fff" : theme.primary }]}>
-                Landlord
-              </Text>
-            </Pressable>
+        <SettingsSection
+          icon="🛠️"
+          title="Developer / Demo"
+          description="Preview roles and backend status"
+          theme={theme}
+        >
+          <View style={[styles.roleSection, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.roleLabel, { color: theme.text }]}>Switch Role</Text>
+            <Text style={[styles.roleSub, { color: theme.textSecondary }]}>
+              Preview flatmate or landlord experience
+            </Text>
+            <View style={styles.roleRow}>
+              <Pressable
+                style={[
+                  styles.roleBtn,
+                  {
+                    backgroundColor: role === "flatmate" ? theme.primary : theme.primaryMuted,
+                    borderColor: theme.primary,
+                  },
+                ]}
+                onPress={() => onSwitchRole("flatmate")}
+              >
+                <Text style={[styles.roleBtnText, { color: role === "flatmate" ? "#fff" : theme.primary }]}>
+                  Flatmate
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.roleBtn,
+                  {
+                    backgroundColor: role === "landlord" ? theme.primary : theme.primaryMuted,
+                    borderColor: theme.primary,
+                  },
+                ]}
+                onPress={() => onSwitchRole("landlord")}
+              >
+                <Text style={[styles.roleBtnText, { color: role === "landlord" ? "#fff" : theme.primary }]}>
+                  Landlord
+                </Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
-        {backendOffline && (
-          <OfflineBanner isOffline onRetry={onRetryBackend} />
-        )}
+          <SettingRow
+            icon={backendOffline ? "🔴" : "🟢"}
+            label="Backend Status"
+            description={
+              backendOffline
+                ? "Offline — showing cached data"
+                : isMockMode()
+                  ? "Demo mode — mock data"
+                  : "Connected to API"
+            }
+            value={backendOffline ? "Offline" : isMockMode() ? "Mock" : "Online"}
+            onPress={() =>
+              openDetail({
+                icon: backendOffline ? "🔴" : "🟢",
+                title: "Backend Status",
+                body: backendOffline
+                  ? "The backend is unreachable. Your last saved data is shown where available.\n\nTap Retry on the banner below to reconnect."
+                  : isMockMode()
+                    ? "Demo mode is active (EXPO_PUBLIC_USE_MOCK=true). Data is stored locally for preview."
+                    : "Connected to the HomeHub NZ API. Changes are saved to your account.",
+              })
+            }
+            theme={theme}
+          />
+        </SettingsSection>
+
+        {backendOffline && <OfflineBanner isOffline onRetry={onRetryBackend} />}
+
+        <Text style={[styles.footer, { color: theme.textMuted }]}>
+          {BRAND_TAGLINE} · v1.0.0
+        </Text>
 
         <Pressable
-          style={({ pressed }) => [
-            styles.signOutBtn,
-            pressed && styles.signOutPressed,
-          ]}
+          style={({ pressed }) => [styles.signOutBtn, pressed && styles.signOutPressed]}
           onPress={() => setShowSignOutModal(true)}
           accessibilityRole="button"
           accessibilityLabel="Sign out"
@@ -267,6 +394,13 @@ export function ProfileScreen({
           <Text style={styles.signOutText}>Sign Out</Text>
         </Pressable>
       </ScreenShell>
+
+      <DetailModal
+        visible={!!detailModal}
+        content={detailModal}
+        theme={theme}
+        onClose={() => setDetailModal(null)}
+      />
 
       <Modal
         visible={showSignOutModal}
@@ -283,7 +417,7 @@ export function ProfileScreen({
           <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Text style={[styles.modalTitle, { color: theme.text }]}>Sign Out</Text>
             <Text style={[styles.modalMessage, { color: theme.textSecondary }]}>
-              Are you sure you want to sign out?
+              Are you sure you want to sign out? You will return to the login screen.
             </Text>
             <View style={styles.modalActions}>
               <Pressable
@@ -303,40 +437,192 @@ export function ProfileScreen({
   );
 }
 
-function ProfileRow({
+function ProfileNavHeader({
+  onBack,
+  onGoHome,
+  theme,
+}: {
+  onBack: () => void;
+  onGoHome: () => void;
+  theme: ReturnType<typeof useTheme>["theme"];
+}) {
+  return (
+    <View style={styles.navWrap}>
+      <View style={styles.navRow}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.navBtn,
+            { backgroundColor: theme.card, borderColor: theme.border },
+            pressed && styles.navBtnPressed,
+          ]}
+          onPress={onBack}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Text style={[styles.navBackText, { color: theme.primary }]}>← Back</Text>
+        </Pressable>
+
+        <View style={styles.navCenter}>
+          <Text style={[styles.navTitle, { color: theme.text }]}>Profile</Text>
+          <Text style={[styles.navSubtitle, { color: theme.textSecondary }]}>
+            Account & settings
+          </Text>
+        </View>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.navIconBtn,
+            { backgroundColor: theme.card, borderColor: theme.border },
+            pressed && styles.navBtnPressed,
+          ]}
+          onPress={onGoHome}
+          accessibilityRole="button"
+          accessibilityLabel="Go to home"
+        >
+          <Text style={styles.navHomeIcon}>🏠</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function SettingsSection({
+  icon,
+  title,
+  description,
+  theme,
+  children,
+}: {
+  icon: string;
+  title: string;
+  description: string;
+  theme: ReturnType<typeof useTheme>["theme"];
+  children: ReactNode;
+}) {
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeading}>
+        <Text style={styles.sectionIcon}>{icon}</Text>
+        <View style={styles.sectionText}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
+          <Text style={[styles.sectionDesc, { color: theme.textMuted }]}>{description}</Text>
+        </View>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+function SettingRow({
   icon,
   label,
+  description,
   value,
   badge,
   onPress,
+  theme,
 }: {
   icon: string;
   label: string;
+  description?: string;
   value?: string;
   badge?: number;
   onPress: () => void;
+  theme: ReturnType<typeof useTheme>["theme"];
 }) {
-  const { theme } = useTheme();
   return (
     <Pressable
-      style={[styles.row, { backgroundColor: theme.card, borderColor: theme.border }]}
+      style={({ pressed }) => [
+        styles.settingRow,
+        { backgroundColor: theme.card, borderColor: theme.border },
+        pressed && styles.settingRowPressed,
+      ]}
       onPress={onPress}
+      accessibilityRole="button"
     >
-      <Text style={[styles.rowLabel, { color: theme.text }]}>
-        {icon} {label}
-      </Text>
-      {badge !== undefined && badge > 0 ? (
-        <Badge label={String(badge)} tone="danger" />
-      ) : value ? (
-        <Text style={[styles.rowValue, { color: theme.textMuted }]}>{value}</Text>
-      ) : (
+      <Text style={styles.settingIcon}>{icon}</Text>
+      <View style={styles.settingBody}>
+        <Text style={[styles.settingLabel, { color: theme.text }]}>{label}</Text>
+        {description ? (
+          <Text style={[styles.settingDesc, { color: theme.textMuted }]} numberOfLines={2}>
+            {description}
+          </Text>
+        ) : null}
+      </View>
+      <View style={styles.settingTrailing}>
+        {badge !== undefined && badge > 0 ? (
+          <Badge label={String(badge)} tone="danger" />
+        ) : value ? (
+          <Text style={[styles.settingValue, { color: theme.textMuted }]}>{value}</Text>
+        ) : null}
         <Text style={[styles.chevron, { color: theme.textMuted }]}>›</Text>
-      )}
+      </View>
     </Pressable>
   );
 }
 
+function DetailModal({
+  visible,
+  content,
+  theme,
+  onClose,
+}: {
+  visible: boolean;
+  content: DetailModalContent | null;
+  theme: ReturnType<typeof useTheme>["theme"];
+  onClose: () => void;
+}) {
+  if (!content) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={styles.detailIcon}>{content.icon}</Text>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>{content.title}</Text>
+          <Text style={[styles.detailBody, { color: theme.textSecondary }]}>{content.body}</Text>
+          <Pressable
+            style={[styles.detailCloseBtn, { backgroundColor: theme.primary }]}
+            onPress={onClose}
+          >
+            <Text style={styles.detailCloseText}>Got it</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
+  navWrap: { flex: 1, width: "100%" },
+  navRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  navBtn: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    minHeight: touchTarget,
+    justifyContent: "center",
+  },
+  navBackText: { fontSize: 14, fontWeight: "700" },
+  navCenter: { flex: 1, alignItems: "center" },
+  navTitle: { fontSize: 18, fontWeight: "800" },
+  navSubtitle: { fontSize: 12, marginTop: 2 },
+  navIconBtn: {
+    width: touchTarget,
+    height: touchTarget,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navHomeIcon: { fontSize: 20 },
+  navBtnPressed: { opacity: 0.85 },
   profile: {
     flexDirection: "row",
     alignItems: "center",
@@ -346,26 +632,15 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     marginBottom: spacing.lg,
   },
-  avatarColumn: {
-    alignItems: "center",
-    gap: spacing.sm,
-  },
+  avatarColumn: { alignItems: "center", gap: spacing.sm },
   profilePhoto: {
     width: PROFILE_PHOTO_SIZE,
     height: PROFILE_PHOTO_SIZE,
     borderRadius: PROFILE_PHOTO_SIZE / 2,
     borderWidth: 2,
   },
-  profilePhotoFallback: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  profileInitials: {
-    color: "#fff",
-    fontSize: 32,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-  },
+  profilePhotoFallback: { alignItems: "center", justifyContent: "center" },
+  profileInitials: { color: "#fff", fontSize: 32, fontWeight: "800", letterSpacing: -0.5 },
   changePhotoBtn: {
     borderRadius: radius.md,
     borderWidth: 1,
@@ -380,35 +655,47 @@ const styles = StyleSheet.create({
   profileInfo: { flex: 1 },
   name: { fontSize: 22, fontWeight: "800" },
   email: { fontSize: 14, marginTop: 4 },
-  versionRow: {
+  section: { marginBottom: spacing.lg },
+  sectionHeading: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  sectionIcon: { fontSize: 22, marginTop: 2 },
+  sectionText: { flex: 1 },
+  sectionTitle: { fontSize: 17, fontWeight: "800" },
+  sectionDesc: { fontSize: 13, marginTop: 2, lineHeight: 18 },
+  settingRow: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: spacing.md,
     borderRadius: radius.lg,
     borderWidth: 1,
     padding: spacing.lg,
     marginBottom: spacing.sm,
-    minHeight: touchTarget,
+    minHeight: touchTarget + 8,
   },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: spacing.lg,
-    marginBottom: spacing.sm,
-    minHeight: touchTarget,
-  },
-  rowLabel: { fontSize: 15, fontWeight: "600" },
-  rowValue: { fontSize: 14, fontWeight: "600" },
+  settingRowPressed: { opacity: 0.9 },
+  settingIcon: { fontSize: 20, width: 28, textAlign: "center" },
+  settingBody: { flex: 1 },
+  settingLabel: { fontSize: 15, fontWeight: "700" },
+  settingDesc: { fontSize: 12, marginTop: 3, lineHeight: 16 },
+  settingTrailing: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  settingValue: { fontSize: 12, fontWeight: "600", maxWidth: 88, textAlign: "right" },
   chevron: { fontSize: 20, fontWeight: "300" },
-  roleSection: { borderRadius: radius.xl, borderWidth: 1, padding: spacing.lg, marginBottom: spacing.md },
-  roleSub: { fontSize: 13, marginBottom: spacing.md },
+  roleSection: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  roleLabel: { fontSize: 15, fontWeight: "700" },
+  roleSub: { fontSize: 12, marginTop: 4, marginBottom: spacing.md, lineHeight: 16 },
   roleRow: { flexDirection: "row", gap: spacing.md },
   roleBtn: { flex: 1, borderRadius: radius.md, borderWidth: 1, paddingVertical: 14, alignItems: "center" },
   roleBtnText: { fontSize: 14, fontWeight: "700" },
-  footer: { textAlign: "center", fontSize: 12, marginTop: spacing.lg, marginBottom: spacing.xl },
+  footer: { textAlign: "center", fontSize: 12, marginTop: spacing.lg, marginBottom: spacing.md },
   signOutBtn: {
     width: "100%",
     backgroundColor: SIGN_OUT_BG,
@@ -436,18 +723,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: spacing.xl,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    textAlign: "center",
-    marginBottom: spacing.sm,
-  },
-  modalMessage: {
-    fontSize: 15,
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: spacing.xl,
-  },
+  modalTitle: { fontSize: 20, fontWeight: "800", textAlign: "center", marginBottom: spacing.sm },
+  modalMessage: { fontSize: 15, textAlign: "center", lineHeight: 22, marginBottom: spacing.xl },
   modalActions: { flexDirection: "row", gap: spacing.md },
   modalCancel: {
     flex: 1,
@@ -471,4 +748,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   modalSignOutText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
+  detailIcon: { fontSize: 36, textAlign: "center", marginBottom: spacing.sm },
+  detailBody: { fontSize: 15, lineHeight: 22, textAlign: "center", marginBottom: spacing.xl },
+  detailCloseBtn: {
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    alignItems: "center",
+    minHeight: touchTarget,
+    justifyContent: "center",
+  },
+  detailCloseText: { color: "#fff", fontSize: 15, fontWeight: "700" },
 });

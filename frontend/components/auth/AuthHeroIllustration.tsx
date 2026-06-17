@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 import { authColors } from "./authTheme";
 import { spacing } from "../../constants/design";
+import { USE_NATIVE_DRIVER } from "../../utils/animation";
+import { platformShadow } from "../../utils/platformShadow";
 
 export function AuthHeroIllustration() {
   const float = useRef(new Animated.Value(0)).current;
@@ -12,12 +14,12 @@ export function AuthHeroIllustration() {
         Animated.timing(float, {
           toValue: 1,
           duration: 2400,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
         Animated.timing(float, {
           toValue: 0,
           duration: 2400,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
       ]),
     );
@@ -99,11 +101,13 @@ const styles = StyleSheet.create({
     borderColor: authColors.navy,
     padding: 8,
     justifyContent: "space-between",
-    shadowColor: "#04142D",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    ...platformShadow("0px 6px 12px rgba(4, 20, 45, 0.15)", {
+      shadowColor: "#04142D",
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 4,
+    }),
   },
   windowRow: {
     flexDirection: "row",
@@ -141,11 +145,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 2,
     borderColor: "rgba(255, 255, 255, 0.9)",
-    shadowColor: "#04142D",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
+    ...platformShadow("0px 4px 8px rgba(4, 20, 45, 0.12)", {
+      shadowColor: "#04142D",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      elevation: 3,
+    }),
   },
   avatarCenter: {
     width: 52,

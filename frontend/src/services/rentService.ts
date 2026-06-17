@@ -1,26 +1,24 @@
 import api from "./api";
 import { RentPayment } from "@/types";
 import { MOCK_RENT_PAYMENTS } from "@/data/mockData";
-
-const USE_MOCK = true;
-const delay = (ms = 500) => new Promise((r) => setTimeout(r, ms));
+import { isMockMode } from "../utils/dataSource";
 
 export type NewPaymentInput = Omit<RentPayment, "id">;
 
 export const rentService = {
   async list(): Promise<RentPayment[]> {
-    if (USE_MOCK) {
-      await delay();
+    if (isMockMode()) {
+      await new Promise((r) => setTimeout(r, 400));
       return MOCK_RENT_PAYMENTS;
     }
     const { data } = await api.get("/rent/payments");
-    return data;
+    return data ?? [];
   },
 
   async create(input: NewPaymentInput): Promise<RentPayment> {
-    if (USE_MOCK) {
-      await delay();
-      return { ...input, id: Date.now() };
+    if (isMockMode()) {
+      await new Promise((r) => setTimeout(r, 400));
+      return { ...input, id: String(Date.now()) };
     }
     const { data } = await api.post("/rent/payments", input);
     return data;

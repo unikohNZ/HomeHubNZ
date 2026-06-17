@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import Boolean, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -31,6 +32,7 @@ class User(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     refresh_token: Mapped[Optional[str]] = mapped_column(Text)
+    last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"), nullable=False, index=True)
 
     role: Mapped["Role"] = relationship("Role", back_populates="users")

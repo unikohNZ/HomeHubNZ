@@ -1,7 +1,8 @@
 import { ReactNode } from "react";
-import { Platform, Pressable, StyleSheet, View, ViewStyle } from "react-native";
+import { Pressable, StyleSheet, View, ViewStyle } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { radius, spacing } from "../constants/design";
+import { platformShadow } from "../utils/platformShadow";
 
 interface AppCardProps {
   children: ReactNode;
@@ -19,7 +20,7 @@ export function AppCard({ children, elevated, onPress, padded = true, style }: A
     {
       backgroundColor: elevated ? theme.cardElevated : theme.card,
       borderColor: theme.border,
-      ...(Platform.OS !== "web" && {
+      ...platformShadow("0px 6px 12px rgba(0, 0, 0, 0.12)", {
         shadowColor: theme.shadow,
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: elevated ? 0.14 : 0.08,
