@@ -16,6 +16,7 @@ from app.models.property import Property
 from app.models.property_image import PropertyImage
 from app.models.rent import RentPayment
 from app.models.role import Role
+from app.models.task import Task
 from app.models.tenant import Tenant
 from app.models.user import User
 
@@ -44,4 +45,5 @@ __all__ = [
     "Expense",
     "Inspection",
     "InspectionReport",
+    "Task",
 ]

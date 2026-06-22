@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import get_settings
-from app.core.seed import seed_roles
+from app.core.seed import seed_all
 from app.database import AsyncSessionLocal, Base, check_database_connection, engine
 from app.api.v1 import api_router
 from app.websocket.chat import router as ws_chat_router
@@ -30,6 +30,7 @@ from app.models import (  # noqa: F401 — register all models with metadata
     PropertyImage,
     RentPayment,
     Role,
+    Task,
     User,
 )
 
@@ -47,10 +48,24 @@ async def lifespan(app: FastAPI):
                 await conn.run_sync(Base.metadata.create_all)
 
             async with AsyncSessionLocal() as session:
-                await seed_roles(session)
+                from app.core.schema_sync import ensure_dev_schema
+
+                await ensure_dev_schema(session)
+                summary = await seed_all(
+                    session,
+                    include_demo=settings.SEED_DEMO_ON_STARTUP,
+                )
                 await session.commit()
 
-            logger.info("Database tables ready and roles seeded")
+            if summary.get("users"):
+                logger.info(
+                    "Demo accounts ready — flatmate: %s, landlord: %s (password: %s)",
+                    summary["users"]["flatmate"],
+                    summary["users"]["landlord"],
+                    summary.get("password", "123456"),
+                )
+            else:
+                logger.info("Database tables ready and roles seeded")
         except Exception as exc:
             logger.warning("Database startup skipped: %s", exc)
     else:

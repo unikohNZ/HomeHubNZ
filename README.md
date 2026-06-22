@@ -39,9 +39,21 @@ cp frontend/.env.example frontend/.env
 # 2. Start services
 docker compose up -d
 
-# 3. Run mobile app
-cd frontend && npm install && npx expo start
+# 3. Seed demo data (first time)
+cd backend && python scripts/seed.py
+
+# 4. Run mobile app (real API mode)
+cd frontend && npm install && npx expo start --web -c
 ```
+
+### Demo login (after seed)
+
+| Role     | Email                    | Password |
+|----------|--------------------------|----------|
+| Flatmate | flatmate@homehub.co.nz   | 123456   |
+| Landlord | landlord@homehub.co.nz   | 123456   |
+
+Set `EXPO_PUBLIC_USE_MOCK=false` in `frontend/.env`. See [backend/README.md](backend/README.md) for migrations, Alembic `stamp head`, and full seed documentation.
 
 ## Documentation
 

@@ -15,7 +15,10 @@ class PropertyRepository(BaseRepository[Property]):
     async def get_by_owner(self, owner_id: int, skip: int = 0, limit: int = 100) -> List[Property]:
         result = await self.db.execute(
             select(Property)
-            .options(selectinload(Property.flatmates))
+            .options(
+                selectinload(Property.flatmates),
+                selectinload(Property.images),
+            )
             .where(Property.owner_id == owner_id)
             .offset(skip)
             .limit(limit)
@@ -28,7 +31,10 @@ class PropertyRepository(BaseRepository[Property]):
         result = await self.db.execute(
             select(Property)
             .join(Flatmate, Flatmate.property_id == Property.id)
-            .options(selectinload(Property.flatmates))
+            .options(
+                selectinload(Property.flatmates),
+                selectinload(Property.images),
+            )
             .where(
                 Flatmate.user_id == user_id,
                 Flatmate.is_active.is_(True),

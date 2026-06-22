@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from app.models.notification import Notification
     from app.models.property import Property
     from app.models.role import Role
+    from app.models.tenant import Tenant
 
 
 class User(Base, TimestampMixin):
@@ -42,6 +43,7 @@ class User(Base, TimestampMixin):
         foreign_keys="Property.owner_id",
     )
     flatmate_records: Mapped[List["Flatmate"]] = relationship("Flatmate", back_populates="user")
+    tenant_records: Mapped[List["Tenant"]] = relationship("Tenant", back_populates="user")
     join_requests: Mapped[List["JoinRequest"]] = relationship(
         "JoinRequest",
         back_populates="applicant",

@@ -37,6 +37,8 @@ ROLE_PERMISSIONS: dict[str, List[Permission]] = {
     ],
     "flatmate": [
         Permission.PROPERTY_READ,
+        Permission.RENT_VIEW,
+        Permission.MAINTENANCE_SUBMIT,
         Permission.BILL_MANAGE,
         Permission.CHAT_ACCESS,
     ],

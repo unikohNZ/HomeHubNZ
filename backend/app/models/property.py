@@ -10,7 +10,9 @@ from app.models.base import TimestampMixin
 from app.models.enums import PropertyType, RentFrequency
 
 if TYPE_CHECKING:
+    from app.models.bill import Bill
     from app.models.document import Document
+    from app.models.inspection import Inspection
     from app.models.emergency import EmergencyAlert, EmergencyContact
     from app.models.event import Event
     from app.models.flatmate import Flatmate
@@ -19,6 +21,7 @@ if TYPE_CHECKING:
     from app.models.lease import Lease
     from app.models.maintenance import MaintenanceRequest
     from app.models.property_image import PropertyImage
+    from app.models.task import Task
     from app.models.tenant import Tenant
     from app.models.user import User
 
@@ -64,6 +67,9 @@ class Property(Base, TimestampMixin):
     )
     join_requests: Mapped[List["JoinRequest"]] = relationship("JoinRequest", back_populates="property")
     house_rules: Mapped[List["HouseRule"]] = relationship("HouseRule", back_populates="property")
+    bills: Mapped[List["Bill"]] = relationship("Bill", back_populates="property")
+    tasks: Mapped[List["Task"]] = relationship("Task", back_populates="property")
+    inspections: Mapped[List["Inspection"]] = relationship("Inspection", back_populates="property")
     events: Mapped[List["Event"]] = relationship("Event", back_populates="property")
     emergency_contacts: Mapped[List["EmergencyContact"]] = relationship(
         "EmergencyContact",

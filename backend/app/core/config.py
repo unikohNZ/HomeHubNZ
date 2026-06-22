@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     # Expo push (optional)
     EXPO_ACCESS_TOKEN: str = ""
 
+    # Demo seed (development)
+    SEED_DEMO_ON_STARTUP: bool = False
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def async_database_url(self) -> str:
