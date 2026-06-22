@@ -26,6 +26,14 @@ _SCHEMA_PATCHES = [
     "ALTER TABLE maintenance_requests ADD COLUMN IF NOT EXISTS video_urls TEXT",
     "ALTER TABLE maintenance_requests ADD COLUMN IF NOT EXISTS completion_photos TEXT",
     "ALTER TABLE maintenance_requests ADD COLUMN IF NOT EXISTS ai_suggestion TEXT",
+    # location (005)
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_location_name VARCHAR(255)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_latitude DOUBLE PRECISION",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_longitude DOUBLE PRECISION",
+    "ALTER TABLE properties ADD COLUMN IF NOT EXISTS region VARCHAR(100)",
+    "ALTER TABLE properties ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'New Zealand'",
+    "ALTER TABLE properties ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION",
+    "ALTER TABLE properties ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION",
 ]
 
 

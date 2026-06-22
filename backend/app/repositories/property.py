@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.property import Property
 from app.repositories.base import BaseRepository
+from app.utils.geo import coords_for_place, haversine_km
 
 
 class PropertyRepository(BaseRepository[Property]):
@@ -47,6 +48,10 @@ class PropertyRepository(BaseRepository[Property]):
         self,
         *,
         city: str | None = None,
+        location: str | None = None,
+        lat: float | None = None,
+        lng: float | None = None,
+        radius_km: float | None = None,
         min_rent=None,
         max_rent=None,
         min_rooms: int | None = None,
@@ -55,10 +60,18 @@ class PropertyRepository(BaseRepository[Property]):
         query: str | None = None,
         skip: int = 0,
         limit: int = 50,
-    ) -> List[Property]:
+    ) -> List[Tuple[Property, Optional[float]]]:
         stmt = select(Property).where(Property.is_published.is_(True))
+        search_text = location or city or query
         if city:
             stmt = stmt.where(Property.city.ilike(f"%{city}%"))
+        if location:
+            like = f"%{location}%"
+            stmt = stmt.where(
+                (Property.suburb.ilike(like))
+                | (Property.city.ilike(like))
+                | (Property.address_line1.ilike(like))
+            )
         if min_rent is not None:
             stmt = stmt.where(Property.rent_amount >= min_rent)
         if max_rent is not None:
@@ -69,7 +82,7 @@ class PropertyRepository(BaseRepository[Property]):
             stmt = stmt.where(Property.bedrooms >= min_bedrooms)
         if property_type is not None:
             stmt = stmt.where(Property.property_type == property_type)
-        if query:
+        if query and not location:
             like = f"%{query}%"
             stmt = stmt.where(
                 (Property.name.ilike(like))
@@ -77,8 +90,29 @@ class PropertyRepository(BaseRepository[Property]):
                 | (Property.suburb.ilike(like))
                 | (Property.city.ilike(like))
             )
-        result = await self.db.execute(stmt.offset(skip).limit(limit))
-        return list(result.scalars().all())
+        result = await self.db.execute(stmt)
+        rows = list(result.scalars().all())
+
+        origin_lat, origin_lng = lat, lng
+        if (origin_lat is None or origin_lng is None) and search_text:
+            guessed = coords_for_place(search_text)
+            if guessed:
+                origin_lat, origin_lng = guessed
+
+        scored: List[Tuple[Property, Optional[float]]] = []
+        for prop in rows:
+            distance: Optional[float] = None
+            if origin_lat is not None and origin_lng is not None and prop.latitude is not None and prop.longitude is not None:
+                distance = round(haversine_km(origin_lat, origin_lng, prop.latitude, prop.longitude), 1)
+                if radius_km is not None and distance > radius_km:
+                    continue
+            scored.append((prop, distance))
+
+        if origin_lat is not None and origin_lng is not None:
+            scored.sort(key=lambda x: x[1] if x[1] is not None else 9999)
+
+        page = scored[skip : skip + limit]
+        return page
 
     async def get_with_relations(self, property_id: int) -> Optional[Property]:
         result = await self.db.execute(

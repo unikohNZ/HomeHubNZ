@@ -23,6 +23,10 @@ class PropertyCreate(BaseModel):
     max_flatmates: Optional[int] = Field(None, ge=1)
     lease_start: Optional[date] = None
     lease_end: Optional[date] = None
+    region: Optional[str] = None
+    country: Optional[str] = "New Zealand"
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 class PropertyUpdate(BaseModel):
@@ -41,6 +45,10 @@ class PropertyUpdate(BaseModel):
     max_flatmates: Optional[int] = Field(None, ge=1)
     lease_start: Optional[date] = None
     lease_end: Optional[date] = None
+    region: Optional[str] = None
+    country: Optional[str] = "New Zealand"
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     is_published: Optional[bool] = None
 
 
@@ -70,6 +78,11 @@ class PropertyResponse(BaseModel):
     # Legacy aliases for existing clients
     address_line1: str
     rent_amount: Decimal
+    region: Optional[str] = None
+    country: Optional[str] = "New Zealand"
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    distance_km: Optional[float] = None
 
     model_config = {"from_attributes": True}
 

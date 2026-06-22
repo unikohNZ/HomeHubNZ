@@ -38,6 +38,10 @@ async def list_properties(
 @router.get("/search", response_model=List[PropertyResponse])
 async def search_properties(
     city: str | None = Query(None),
+    location: str | None = Query(None),
+    lat: float | None = Query(None, ge=-90, le=90),
+    lng: float | None = Query(None, ge=-180, le=180),
+    radius_km: float | None = Query(None, ge=0.1, le=500),
     min_rent: float | None = Query(None),
     max_rent: float | None = Query(None),
     min_rooms: int | None = Query(None, ge=0),
@@ -50,6 +54,10 @@ async def search_properties(
     service = PropertyService(db)
     return await service.search(
         city=city,
+        location=location,
+        lat=lat,
+        lng=lng,
+        radius_km=radius_km,
         min_rent=min_rent,
         max_rent=max_rent,
         min_rooms=min_rooms,

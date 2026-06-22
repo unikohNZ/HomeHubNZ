@@ -5,7 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.repositories.user import UserRepository
 from app.schemas.auth import UserResponse
+from app.schemas.location import UserLocationResponse, UserLocationUpdate
 from app.schemas.profile import AvatarUpdate, ProfileUpdate
+from app.utils.geo import coords_for_place
 
 
 class ProfileService:
@@ -50,3 +52,23 @@ class ProfileService:
         user.avatar_url = data.avatar_url
         await self.user_repo.update(user)
         return await self.get_profile(user)
+
+    async def get_location(self, user: User) -> UserLocationResponse:
+        return UserLocationResponse(
+            preferred_location_name=user.preferred_location_name,
+            preferred_latitude=user.preferred_latitude,
+            preferred_longitude=user.preferred_longitude,
+        )
+
+    async def update_location(self, user: User, data: UserLocationUpdate) -> UserLocationResponse:
+        user.preferred_location_name = data.preferred_location_name
+        lat = data.preferred_latitude
+        lng = data.preferred_longitude
+        if lat is None or lng is None:
+            guessed = coords_for_place(data.preferred_location_name)
+            if guessed:
+                lat, lng = guessed
+        user.preferred_latitude = lat
+        user.preferred_longitude = lng
+        await self.user_repo.update(user)
+        return await self.get_location(user)

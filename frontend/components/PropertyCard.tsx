@@ -43,7 +43,10 @@ export function PropertyCard({
           <View style={styles.flex}>
             <Text style={[styles.name, { color: theme.text }]}>{property.name}</Text>
             <Text style={[styles.address, { color: theme.textMuted }]}>
-              {property.address}, {property.suburb}
+              📍{" "}
+              {property.distance_km != null
+                ? `${property.distance_km} km away`
+                : `${property.suburb}, ${property.city}`}
             </Text>
           </View>
           <Text style={[styles.rent, { color: theme.success }]}>

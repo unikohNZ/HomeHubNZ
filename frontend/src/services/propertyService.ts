@@ -24,6 +24,10 @@ export interface PropertyListResult {
 
 export interface PropertySearchFilters {
   city?: string;
+  location?: string;
+  lat?: number;
+  lng?: number;
+  radius_km?: number;
   min_rent?: number;
   max_rent?: number;
   min_rooms?: number;

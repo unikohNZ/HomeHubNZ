@@ -1,11 +1,16 @@
 export type DemoRole = "flatmate" | "landlord";
 
-export type FlatmateTabId = "home" | "myflat" | "ella" | "payments" | "more";
-export type LandlordTabId = "home" | "properties" | "ella" | "payments" | "more";
-export type TabId = FlatmateTabId | LandlordTabId;
+/** Main bottom navigation — same for all roles */
+export type TabId = "home" | "messages" | "ella" | "payments" | "profile";
 
-/** @deprecated Use TabId — kept for internal navigation helpers */
-export type LegacyTabId = "rent" | "messages" | "profile" | "tenants" | "maintenance";
+/** @deprecated Legacy tab ids — mapped in navigateTab */
+export type LegacyTabId =
+  | "rent"
+  | "myflat"
+  | "properties"
+  | "more"
+  | "tenants"
+  | "maintenance";
 
 export * from "./navigation";
 export * from "./property";

@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Date, Float, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -50,6 +50,10 @@ class Property(Base, TimestampMixin):
     is_published: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     lease_start: Mapped[Optional[date]] = mapped_column(Date)
     lease_end: Mapped[Optional[date]] = mapped_column(Date)
+    region: Mapped[Optional[str]] = mapped_column(String(100))
+    country: Mapped[str] = mapped_column(String(100), default="New Zealand", nullable=False)
+    latitude: Mapped[Optional[float]] = mapped_column(Float)
+    longitude: Mapped[Optional[float]] = mapped_column(Float)
 
     owner: Mapped["User"] = relationship("User", back_populates="owned_properties", foreign_keys=[owner_id])
     leases: Mapped[List["Lease"]] = relationship("Lease", back_populates="property")

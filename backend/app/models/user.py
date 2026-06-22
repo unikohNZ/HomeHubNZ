@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -35,6 +35,9 @@ class User(Base, TimestampMixin):
     refresh_token: Mapped[Optional[str]] = mapped_column(Text)
     last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"), nullable=False, index=True)
+    preferred_location_name: Mapped[Optional[str]] = mapped_column(String(255))
+    preferred_latitude: Mapped[Optional[float]] = mapped_column(Float)
+    preferred_longitude: Mapped[Optional[float]] = mapped_column(Float)
 
     role: Mapped["Role"] = relationship("Role", back_populates="users")
     owned_properties: Mapped[List["Property"]] = relationship(

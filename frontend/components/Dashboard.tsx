@@ -1,32 +1,23 @@
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { ELLA_ASSETS } from "../constants/branding";
+import { radius, spacing } from "../constants/design";
 import { useTheme } from "../context/ThemeContext";
+import { ELLA_PAGE } from "../src/constants/ellaTheme";
 import { AppNotification } from "../types/flat";
 import { Property } from "../types/property";
 import { formatCurrency } from "../utils/format";
 import { AppCard } from "./AppCard";
 import { SectionHeader } from "./SectionHeader";
-import { UserAvatar } from "./UserAvatar";
-import { radius, spacing } from "../constants/design";
-
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good Morning";
-  if (hour < 17) return "Good Afternoon";
-  return "Good Evening";
-}
 
 function rentStatusLabel(daysUntil: number | null): { text: string; tone: "success" | "warning" | "danger" } {
   if (daysUntil === null) return { text: "No rent scheduled", tone: "success" };
-  if (daysUntil < 0) return { text: `Overdue by ${Math.abs(daysUntil)} day${Math.abs(daysUntil) === 1 ? "" : "s"}`, tone: "danger" };
+  if (daysUntil < 0) return { text: `Overdue ${Math.abs(daysUntil)}d`, tone: "danger" };
   if (daysUntil === 0) return { text: "Due today", tone: "warning" };
-  if (daysUntil <= 3) return { text: `Due in ${daysUntil} day${daysUntil === 1 ? "" : "s"}`, tone: "warning" };
-  return { text: "Everything looks good today", tone: "success" };
+  if (daysUntil <= 3) return { text: `Due in ${daysUntil}d`, tone: "warning" };
+  return { text: "On track", tone: "success" };
 }
 
 export interface FlatmateDashboardProps {
-  userName: string;
-  avatarUrl?: string | null;
-  avatarColor?: string;
   property: Property | null;
   nextRentDate: string | null;
   nextRentAmount: number;
@@ -36,15 +27,11 @@ export interface FlatmateDashboardProps {
   onMyFlat: () => void;
   onMessages: () => void;
   onMaintenance: () => void;
-  onCalendar: () => void;
   onPayRent: () => void;
-  onViewHistory: () => void;
+  onAskElla: () => void;
 }
 
 export function FlatmateDashboard({
-  userName,
-  avatarUrl,
-  avatarColor = "#4F86F7",
   property,
   nextRentDate,
   nextRentAmount,
@@ -54,244 +41,57 @@ export function FlatmateDashboard({
   onMyFlat,
   onMessages,
   onMaintenance,
-  onCalendar,
   onPayRent,
-  onViewHistory,
+  onAskElla,
 }: FlatmateDashboardProps) {
   const { theme } = useTheme();
-  const firstName = userName.split(" ")[0];
   const status = rentStatusLabel(rentDaysUntil);
   const statusColor =
     status.tone === "danger" ? theme.danger : status.tone === "warning" ? theme.warning : theme.success;
 
   const quickActions = [
     { label: "My Flat", icon: "🏡", onPress: onMyFlat },
+    { label: "Pay Rent", icon: "💰", onPress: onPayRent },
     { label: "Messages", icon: "💬", onPress: onMessages, badge: unreadMessages },
     { label: "Maintenance", icon: "🔧", onPress: onMaintenance },
-    { label: "Calendar", icon: "📅", onPress: onCalendar },
   ];
 
-  const activity = notifications.slice(0, 4).map((n) => ({
+  const activity = notifications.slice(0, 3).map((n) => ({
     id: n.id,
     icon: n.icon,
     title: n.title,
-    subtitle: n.message,
     time: n.datetime ?? "Recently",
   }));
 
-  if (activity.length === 0) {
-    activity.push(
-      { id: "a1", icon: "✅", title: "Rent Paid", subtitle: "Your last payment was recorded", time: "This week" },
-      { id: "a2", icon: "💬", title: "New Message", subtitle: "Check Messages for updates", time: "Today" },
-    );
-  }
-
-  return (
-    <>
-      {/* Section 1 — Welcome */}
-      <AppCard elevated style={styles.welcomeCard}>
-        <View style={styles.welcomeRow}>
-          <UserAvatar name={userName} color={avatarColor} size={52} imageUri={avatarUrl} />
-          <View style={styles.welcomeText}>
-            <Text style={[styles.greeting, { color: theme.textSecondary }]}>
-              {getGreeting()}, {firstName} 👋
-            </Text>
-            <Text style={[styles.propertyName, { color: theme.text }]}>
-              {property?.name ?? "Find your flat"}
-            </Text>
-            <View style={[styles.statusPill, { backgroundColor: statusColor + "22" }]}>
-              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-              <Text style={[styles.statusText, { color: statusColor }]}>{status.text}</Text>
-            </View>
-          </View>
-        </View>
-      </AppCard>
-
-      {/* Section 2 — Rent */}
-      <AppCard elevated>
-        <Text style={[styles.cardLabel, { color: theme.textMuted }]}>Rent</Text>
-        <Text style={[styles.rentAmount, { color: theme.accent }]}>
-          {formatCurrency(nextRentAmount)}
-        </Text>
-        <View style={styles.rentMeta}>
-          <Text style={[styles.metaLabel, { color: theme.textSecondary }]}>
-            Due {nextRentDate ?? "—"}
-          </Text>
-          <Text style={[styles.metaStatus, { color: statusColor }]}>{status.text}</Text>
-        </View>
-        <View style={styles.btnRow}>
-          <Pressable style={[styles.primaryBtn, { backgroundColor: theme.primary }]} onPress={onPayRent}>
-            <Text style={styles.primaryBtnText}>Pay Rent</Text>
-          </Pressable>
-          <Pressable style={[styles.secondaryBtn, { borderColor: theme.border }]} onPress={onViewHistory}>
-            <Text style={[styles.secondaryBtnText, { color: theme.text }]}>View History</Text>
-          </Pressable>
-        </View>
-      </AppCard>
-
-      {/* Section 3 — Property summary */}
-      {property && (
-        <AppCard>
-          <Text style={[styles.cardLabel, { color: theme.textMuted }]}>Your Property</Text>
-          <Image source={{ uri: property.image_url }} style={styles.propertyImage} />
-          <Text style={[styles.address, { color: theme.text }]}>{property.address}</Text>
-          <Text style={[styles.suburb, { color: theme.textSecondary }]}>
-            {property.suburb}, {property.city}
-          </Text>
-          <View style={styles.statsRow}>
-            <Stat label="Lease start" value={property.lease_start ?? "—"} theme={theme.text} />
-            <Stat label="Lease end" value={property.lease_end ?? "—"} theme={theme.text} />
-          </View>
-          <View style={styles.statsRow}>
-            <Stat
-              label="Occupancy"
-              value={`${property.flatmate_count}/${property.max_flatmates}`}
-              theme={theme.text}
-            />
-            <Stat label="Flatmates" value={String(property.flatmate_count)} theme={theme.text} />
-          </View>
-        </AppCard>
-      )}
-
-      {/* Section 4 — Quick actions (max 4) */}
-      <SectionHeader title="Quick Actions" />
-      <View style={styles.grid}>
-        {quickActions.map((a) => (
-          <Pressable
-            key={a.label}
-            style={({ pressed }) => [
-              styles.action,
-              { backgroundColor: theme.card, borderColor: theme.border },
-              pressed && { opacity: 0.88 },
-            ]}
-            onPress={a.onPress}
-          >
-            <Text style={styles.actionIcon}>{a.icon}</Text>
-            <Text style={[styles.actionLabel, { color: theme.text }]}>{a.label}</Text>
-            {"badge" in a && a.badge !== undefined && a.badge > 0 && (
-              <View style={[styles.actionBadge, { backgroundColor: theme.danger }]}>
-                <Text style={styles.actionBadgeText}>{a.badge > 9 ? "9+" : a.badge}</Text>
-              </View>
-            )}
-          </Pressable>
-        ))}
-      </View>
-
-      {/* Section 5 — Recent activity */}
-      <SectionHeader title="Recent Activity" />
-      {activity.map((item, index) => (
-        <View
-          key={item.id}
-          style={[
-            styles.timelineRow,
-            index < activity.length - 1 && styles.timelineBorder,
-            { borderBottomColor: theme.border },
-          ]}
-        >
-          <View style={[styles.timelineIcon, { backgroundColor: theme.primaryMuted }]}>
-            <Text>{item.icon}</Text>
-          </View>
-          <View style={styles.timelineBody}>
-            <Text style={[styles.timelineTitle, { color: theme.text }]}>{item.title}</Text>
-            <Text style={[styles.timelineSub, { color: theme.textSecondary }]} numberOfLines={1}>
-              {item.subtitle}
-            </Text>
-          </View>
-          <Text style={[styles.timelineTime, { color: theme.textMuted }]}>{item.time}</Text>
-        </View>
-      ))}
-    </>
-  );
-}
-
-function Stat({ label, value, theme }: { label: string; value: string; theme: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={[styles.statLabel, { color: "#94A3B8" }]}>{label}</Text>
-      <Text style={[styles.statValue, { color: theme }]}>{value}</Text>
-    </View>
-  );
-}
-
-interface LandlordDashboardProps {
-  monthlyIncome: number;
-  propertyCount: number;
-  occupancyRate: number;
-  outstandingRent: number;
-  maintenanceCount: number;
-  pendingRequests: number;
-  notifications: AppNotification[];
-  nextInspectionDate: string;
-  inspectionReminder: boolean;
-  onProperties: () => void;
-  onTenants: () => void;
-  onPayments: () => void;
-  onMaintenance: () => void;
-  onProfile: () => void;
-  onNotifications: () => void;
-  onScheduleInspection: () => void;
-}
-
-export function LandlordDashboard({
-  monthlyIncome,
-  propertyCount,
-  occupancyRate,
-  outstandingRent,
-  maintenanceCount,
-  pendingRequests,
-  notifications,
-  nextInspectionDate,
-  inspectionReminder,
-  onProperties,
-  onTenants,
-  onPayments,
-  onMaintenance,
-  onProfile,
-  onNotifications,
-  onScheduleInspection,
-}: LandlordDashboardProps) {
-  const { theme } = useTheme();
-  const landlordNotifs = notifications.slice(0, 4);
-
-  const quickActions = [
-    { label: "Properties", icon: "🏢", onPress: onProperties },
-    { label: "Tenants", icon: "👥", onPress: onTenants },
-    { label: "Payments", icon: "💰", onPress: onPayments },
-    { label: "Maintenance", icon: "🔧", onPress: onMaintenance },
-  ];
-
   return (
     <>
       <AppCard elevated>
-        <Text style={[styles.cardLabel, { color: theme.textMuted }]}>Monthly Income</Text>
-        <Text style={[styles.landlordIncome, { color: theme.text }]}>
-          {formatCurrency(monthlyIncome)}
-        </Text>
-        <View style={styles.statsRow}>
-          <Stat label="Outstanding" value={formatCurrency(outstandingRent)} theme={theme.warning} />
-          <Stat label="Occupancy" value={`${occupancyRate}%`} theme={theme.success} />
+        <Text style={[styles.cardLabel, { color: theme.textMuted }]}>Current Flat</Text>
+        <Text style={[styles.title, { color: theme.text }]}>{property?.name ?? "No flat linked yet"}</Text>
+        {property ? (
+          <Text style={[styles.sub, { color: theme.textSecondary }]}>
+            {property.address}, {property.suburb}
+          </Text>
+        ) : (
+          <Text style={[styles.sub, { color: theme.textSecondary }]}>Browse rentals to find your next flat</Text>
+        )}
+        <View style={styles.rentRow}>
+          <View>
+            <Text style={[styles.meta, { color: theme.textMuted }]}>Rent due</Text>
+            <Text style={[styles.amount, { color: theme.accent }]}>{formatCurrency(nextRentAmount)}</Text>
+          </View>
+          <View style={styles.alignEnd}>
+            <Text style={[styles.meta, { color: theme.textMuted }]}>Due date</Text>
+            <Text style={[styles.date, { color: theme.text }]}>{nextRentDate ?? "—"}</Text>
+          </View>
         </View>
-        <Pressable style={[styles.primaryBtn, { backgroundColor: theme.primary, marginTop: spacing.md }]} onPress={onPayments}>
-          <Text style={styles.primaryBtnText}>View Payments →</Text>
+        <View style={[styles.statusPill, { backgroundColor: statusColor + "22" }]}>
+          <Text style={[styles.statusText, { color: statusColor }]}>{status.text}</Text>
+        </View>
+        <Pressable style={[styles.primaryBtn, { backgroundColor: theme.primary }]} onPress={onMyFlat}>
+          <Text style={styles.primaryBtnText}>View My Flat</Text>
         </Pressable>
       </AppCard>
-
-      <View style={styles.landlordStats}>
-        <MiniStat label="Properties" value={String(propertyCount)} onPress={onProperties} />
-        <MiniStat label="Maintenance" value={String(maintenanceCount)} onPress={onMaintenance} tone="danger" />
-        <MiniStat label="Requests" value={String(pendingRequests)} onPress={onTenants} tone="warning" />
-      </View>
-
-      <Pressable
-        style={[styles.inspectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}
-        onPress={onScheduleInspection}
-      >
-        <Text style={[styles.inspectionTitle, { color: theme.text }]}>Next Inspection</Text>
-        <Text style={[styles.inspectionDate, { color: theme.primary }]}>{nextInspectionDate}</Text>
-        {inspectionReminder && (
-          <Text style={[styles.reminderText, { color: theme.warning }]}>Reminder set</Text>
-        )}
-      </Pressable>
 
       <SectionHeader title="Quick Actions" />
       <View style={styles.grid}>
@@ -303,102 +103,207 @@ export function LandlordDashboard({
           >
             <Text style={styles.actionIcon}>{a.icon}</Text>
             <Text style={[styles.actionLabel, { color: theme.text }]}>{a.label}</Text>
+            {"badge" in a && (a.badge ?? 0) > 0 && (
+              <View style={[styles.badge, { backgroundColor: theme.danger }]}>
+                <Text style={styles.badgeText}>{a.badge! > 9 ? "9+" : a.badge}</Text>
+              </View>
+            )}
           </Pressable>
         ))}
       </View>
 
-      <SectionHeader title="Recent Activity" actionLabel="See all" onAction={onNotifications} />
-      {landlordNotifs.map((n) => (
-        <Pressable
-          key={n.id}
-          style={[styles.notif, { backgroundColor: theme.card, borderColor: theme.border }]}
-          onPress={onNotifications}
-        >
-          <Text style={styles.notifIcon}>{n.icon}</Text>
-          <View style={styles.flex}>
-            <Text style={[styles.notifTitle, { color: theme.text }]}>{n.title}</Text>
-            <Text style={[styles.notifMsg, { color: theme.textMuted }]} numberOfLines={2}>
-              {n.message}
-            </Text>
-          </View>
-        </Pressable>
-      ))}
-
       <Pressable
-        style={[styles.profileLink, { backgroundColor: theme.card, borderColor: theme.border }]}
-        onPress={onProfile}
+        style={[styles.ellaCard, { backgroundColor: ELLA_PAGE.card, borderColor: ELLA_PAGE.purple + "33" }]}
+        onPress={onAskElla}
       >
-        <Text style={[styles.profileLinkText, { color: theme.primary }]}>👤 Account & Settings →</Text>
+        <Image source={ELLA_ASSETS.happy} style={styles.ellaImg} />
+        <View style={styles.ellaBody}>
+          <Text style={[styles.ellaTitle, { color: theme.text }]}>Need a paw with your flat?</Text>
+          <Text style={[styles.ellaSub, { color: theme.textSecondary }]}>Ask Ella anything about rent, rules, or maintenance.</Text>
+          <View style={[styles.ellaBtn, { backgroundColor: ELLA_PAGE.purple }]}>
+            <Text style={styles.ellaBtnText}>Ask Ella</Text>
+          </View>
+        </View>
       </Pressable>
+
+      <SectionHeader title="Recent Activity" />
+      {(activity.length ? activity : [{ id: "ok", icon: "✨", title: "All good at your flat", time: "Just now" }]).map(
+        (item) => (
+          <View key={item.id} style={[styles.activity, { borderBottomColor: theme.border }]}>
+            <Text style={styles.activityIcon}>{item.icon}</Text>
+            <Text style={[styles.activityTitle, { color: theme.text }]}>{item.title}</Text>
+            <Text style={[styles.activityTime, { color: theme.textMuted }]}>{item.time}</Text>
+          </View>
+        ),
+      )}
     </>
   );
 }
 
-function MiniStat({
-  label,
-  value,
-  onPress,
-  tone = "primary",
-}: {
-  label: string;
-  value: string;
-  onPress?: () => void;
-  tone?: "primary" | "warning" | "danger";
-}) {
+export interface LandlordDashboardProps {
+  monthlyIncome: number;
+  collectedThisMonth: number;
+  outstandingRent: number;
+  occupancyRate: number;
+  propertyCount: number;
+  locationSummary: string[];
+  overdueCount: number;
+  pendingJoinRequests: number;
+  maintenanceCount: number;
+  notifications: AppNotification[];
+  onPayments: () => void;
+  onProperties: () => void;
+  onTenants: () => void;
+  onMessages: () => void;
+  onMaintenance: () => void;
+  unreadMessages: number;
+}
+
+export function LandlordDashboard({
+  monthlyIncome,
+  collectedThisMonth,
+  outstandingRent,
+  occupancyRate,
+  propertyCount,
+  locationSummary,
+  overdueCount,
+  pendingJoinRequests,
+  maintenanceCount,
+  notifications,
+  onPayments,
+  onProperties,
+  onTenants,
+  onMessages,
+  onMaintenance,
+  unreadMessages,
+}: LandlordDashboardProps) {
   const { theme } = useTheme();
-  const color =
-    tone === "danger" ? theme.danger : tone === "warning" ? theme.warning : theme.primary;
-  const inner = (
-    <View style={[styles.miniStat, { backgroundColor: theme.card, borderColor: theme.border }]}>
-      <Text style={[styles.miniValue, { color }]}>{value}</Text>
-      <Text style={[styles.miniLabel, { color: theme.textMuted }]}>{label}</Text>
+
+  const quickActions = [
+    { label: "Properties", icon: "🏢", onPress: onProperties },
+    { label: "Tenants", icon: "👥", onPress: onTenants },
+    { label: "Messages", icon: "💬", onPress: onMessages, badge: unreadMessages },
+    { label: "Maintenance", icon: "🔧", onPress: onMaintenance },
+  ];
+
+  const needsAttention: { icon: string; text: string }[] = [];
+  if (overdueCount > 0) needsAttention.push({ icon: "⚠️", text: `${overdueCount} overdue rent payment${overdueCount === 1 ? "" : "s"}` });
+  if (pendingJoinRequests > 0) needsAttention.push({ icon: "👥", text: `${pendingJoinRequests} pending join request${pendingJoinRequests === 1 ? "" : "s"}` });
+  if (maintenanceCount > 0) needsAttention.push({ icon: "🔧", text: `${maintenanceCount} maintenance request${maintenanceCount === 1 ? "" : "s"}` });
+
+  const activity = notifications.slice(0, 3);
+
+  return (
+    <>
+      <AppCard elevated>
+        <Text style={[styles.cardLabel, { color: theme.textMuted }]}>Portfolio Summary</Text>
+        <View style={styles.statsGrid}>
+          <Stat label="Monthly income" value={formatCurrency(monthlyIncome)} color={theme.text} />
+          <Stat label="Collected" value={formatCurrency(collectedThisMonth)} color={theme.success} />
+          <Stat label="Outstanding" value={formatCurrency(outstandingRent)} color={theme.warning} />
+          <Stat label="Occupancy" value={`${occupancyRate}%`} color={theme.primary} />
+        </View>
+        <Pressable style={[styles.primaryBtn, { backgroundColor: theme.primary }]} onPress={onPayments}>
+          <Text style={styles.primaryBtnText}>View Payments</Text>
+        </Pressable>
+      </AppCard>
+
+      <AppCard>
+        <Text style={[styles.cardLabel, { color: theme.textMuted }]}>Properties by location</Text>
+        <Text style={[styles.locations, { color: theme.text }]}>
+          {locationSummary.length ? locationSummary.join(" · ") : "No properties yet"}
+        </Text>
+        <Text style={[styles.sub, { color: theme.textSecondary, marginTop: 4 }]}>
+          {propertyCount} propert{propertyCount === 1 ? "y" : "ies"} managed
+        </Text>
+        <Pressable style={[styles.secondaryBtn, { borderColor: theme.border }]} onPress={onProperties}>
+          <Text style={[styles.secondaryBtnText, { color: theme.primary }]}>View properties</Text>
+        </Pressable>
+      </AppCard>
+
+      <SectionHeader title="Quick Actions" />
+      <View style={styles.grid}>
+        {quickActions.map((a) => (
+          <Pressable
+            key={a.label}
+            style={[styles.action, { backgroundColor: theme.card, borderColor: theme.border }]}
+            onPress={a.onPress}
+          >
+            <Text style={styles.actionIcon}>{a.icon}</Text>
+            <Text style={[styles.actionLabel, { color: theme.text }]}>{a.label}</Text>
+            {"badge" in a && (a.badge ?? 0) > 0 && (
+              <View style={[styles.badge, { backgroundColor: theme.danger }]}>
+                <Text style={styles.badgeText}>{a.badge! > 9 ? "9+" : a.badge}</Text>
+              </View>
+            )}
+          </Pressable>
+        ))}
+      </View>
+
+      <AppCard>
+        <Text style={[styles.cardLabel, { color: theme.textMuted }]}>Needs Attention</Text>
+        {needsAttention.length === 0 ? (
+          <Text style={[styles.sub, { color: theme.success }]}>✨ Nothing urgent right now</Text>
+        ) : (
+          needsAttention.map((n) => (
+            <View key={n.text} style={styles.needRow}>
+              <Text>{n.icon}</Text>
+              <Text style={[styles.needText, { color: theme.text }]}>{n.text}</Text>
+            </View>
+          ))
+        )}
+      </AppCard>
+
+      <SectionHeader title="Recent Activity" />
+      {(activity.length ? activity : [{ id: "ok", icon: "✨", title: "Portfolio looking healthy", message: "", datetime: "Just now" } as AppNotification]).map(
+        (n) => (
+          <View key={n.id} style={[styles.activity, { borderBottomColor: theme.border }]}>
+            <Text style={styles.activityIcon}>{n.icon}</Text>
+            <Text style={[styles.activityTitle, { color: theme.text }]}>{n.title}</Text>
+            <Text style={[styles.activityTime, { color: theme.textMuted }]}>{n.datetime ?? "Recently"}</Text>
+          </View>
+        ),
+      )}
+    </>
+  );
+}
+
+function Stat({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <View style={styles.stat}>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statValue, { color }]}>{value}</Text>
     </View>
   );
-  if (onPress) return <Pressable style={styles.miniWrap} onPress={onPress}>{inner}</Pressable>;
-  return <View style={styles.miniWrap}>{inner}</View>;
 }
 
 const styles = StyleSheet.create({
-  welcomeCard: { marginBottom: 0 },
-  welcomeRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  welcomeText: { flex: 1 },
-  greeting: { fontSize: 13, fontWeight: "600" },
-  propertyName: { fontSize: 20, fontWeight: "800", marginTop: 2 },
+  cardLabel: { fontSize: 11, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.5 },
+  title: { fontSize: 20, fontWeight: "800", marginTop: 6 },
+  sub: { fontSize: 14, marginTop: 4 },
+  rentRow: { flexDirection: "row", justifyContent: "space-between", marginTop: spacing.lg },
+  meta: { fontSize: 11, fontWeight: "700", textTransform: "uppercase" },
+  amount: { fontSize: 26, fontWeight: "800", marginTop: 2 },
+  date: { fontSize: 16, fontWeight: "700", marginTop: 2 },
+  alignEnd: { alignItems: "flex-end" },
   statusPill: {
-    flexDirection: "row",
-    alignItems: "center",
     alignSelf: "flex-start",
-    gap: 6,
-    marginTop: 8,
+    marginTop: spacing.md,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
   },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 12, fontWeight: "700" },
-  cardLabel: { fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
-  rentAmount: { fontSize: 32, fontWeight: "800", marginTop: 4 },
-  rentMeta: { flexDirection: "row", justifyContent: "space-between", marginTop: 8 },
-  metaLabel: { fontSize: 13, fontWeight: "600" },
-  metaStatus: { fontSize: 13, fontWeight: "700" },
-  btnRow: { flexDirection: "row", gap: 10, marginTop: spacing.lg },
-  primaryBtn: { flex: 1, borderRadius: radius.lg, paddingVertical: 14, alignItems: "center" },
+  primaryBtn: { borderRadius: radius.lg, paddingVertical: 14, alignItems: "center", marginTop: spacing.lg },
   primaryBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   secondaryBtn: {
-    flex: 1,
     borderRadius: radius.lg,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
+    marginTop: spacing.md,
     borderWidth: 1,
   },
-  secondaryBtnText: { fontSize: 15, fontWeight: "700" },
-  propertyImage: { width: "100%", height: 140, borderRadius: radius.lg, marginTop: spacing.md, marginBottom: spacing.sm },
-  address: { fontSize: 16, fontWeight: "700" },
-  suburb: { fontSize: 13, marginTop: 2, marginBottom: spacing.md },
-  statsRow: { flexDirection: "row", gap: spacing.md, marginBottom: spacing.sm },
-  stat: { flex: 1 },
-  statLabel: { fontSize: 11, fontWeight: "600" },
-  statValue: { fontSize: 15, fontWeight: "800", marginTop: 2 },
+  secondaryBtnText: { fontSize: 14, fontWeight: "700" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, marginBottom: spacing.sm },
   action: {
     width: "47%",
@@ -413,7 +318,7 @@ const styles = StyleSheet.create({
   },
   actionIcon: { fontSize: 26, marginBottom: spacing.sm },
   actionLabel: { fontSize: 13, fontWeight: "700", textAlign: "center" },
-  actionBadge: {
+  badge: {
     position: "absolute",
     top: 8,
     right: 8,
@@ -423,48 +328,43 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  actionBadgeText: { color: "#fff", fontSize: 9, fontWeight: "800" },
-  timelineRow: {
+  badgeText: { color: "#fff", fontSize: 9, fontWeight: "800" },
+  ellaCard: {
+    flexDirection: "row",
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    gap: spacing.md,
+    alignItems: "center",
+  },
+  ellaImg: { width: 64, height: 64, borderRadius: 32 },
+  ellaBody: { flex: 1 },
+  ellaTitle: { fontSize: 16, fontWeight: "800" },
+  ellaSub: { fontSize: 13, marginTop: 4 },
+  ellaBtn: {
+    alignSelf: "flex-start",
+    marginTop: spacing.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: radius.lg,
+  },
+  ellaBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  activity: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
     paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  timelineBorder: { borderBottomWidth: 1 },
-  timelineIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  timelineBody: { flex: 1 },
-  timelineTitle: { fontSize: 14, fontWeight: "700" },
-  timelineSub: { fontSize: 12, marginTop: 2 },
-  timelineTime: { fontSize: 11, fontWeight: "600" },
-  landlordIncome: { fontSize: 34, fontWeight: "800", marginTop: 4 },
-  landlordStats: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
-  miniWrap: { flex: 1 },
-  miniStat: { borderRadius: radius.lg, borderWidth: 1, padding: spacing.md, alignItems: "center" },
-  miniValue: { fontSize: 20, fontWeight: "800" },
-  miniLabel: { fontSize: 10, fontWeight: "600", marginTop: 4, textAlign: "center" },
-  inspectionCard: { borderRadius: radius.xl, borderWidth: 1, padding: spacing.lg, marginBottom: spacing.md },
-  inspectionTitle: { fontSize: 13, fontWeight: "700" },
-  inspectionDate: { fontSize: 18, fontWeight: "800", marginTop: 4 },
-  reminderText: { fontSize: 12, fontWeight: "600", marginTop: 4 },
-  flex: { flex: 1 },
-  notif: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  notifIcon: { fontSize: 20 },
-  notifTitle: { fontSize: 14, fontWeight: "700" },
-  notifMsg: { fontSize: 12, marginTop: 2 },
-  profileLink: { borderRadius: radius.lg, borderWidth: 1, padding: spacing.lg, alignItems: "center", marginTop: spacing.sm },
-  profileLinkText: { fontSize: 14, fontWeight: "700" },
+  activityIcon: { fontSize: 18 },
+  activityTitle: { flex: 1, fontSize: 14, fontWeight: "600" },
+  activityTime: { fontSize: 11, fontWeight: "600" },
+  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, marginTop: spacing.sm },
+  stat: { width: "46%", flexGrow: 1 },
+  statLabel: { fontSize: 11, fontWeight: "600", color: "#94A3B8" },
+  statValue: { fontSize: 18, fontWeight: "800", marginTop: 2 },
+  locations: { fontSize: 16, fontWeight: "700", marginTop: 6 },
+  needRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: 8 },
+  needText: { fontSize: 14, fontWeight: "600" },
 });

@@ -22,6 +22,8 @@ import { pickProfileImage } from "../utils/imagePicker";
 import { initials } from "../utils/format";
 import { useProfile, useUpdateProfile, useUploadAvatar } from "../src/services/profileService";
 import { isMockMode } from "../src/utils/dataSource";
+import { LocationModal } from "../src/components/location/LocationModal";
+import { formatLocationLabel, useUserLocation } from "../src/hooks/useUserLocation";
 
 const PROFILE_PHOTO_SIZE = 96;
 const SIGN_OUT_BG = "#7F1D1D";
@@ -34,13 +36,14 @@ interface ProfileScreenProps {
   requestCount: number;
   unreadNotifications: number;
   isDark: boolean;
+  isTab?: boolean;
   backendOffline?: boolean;
   onRetryBackend?: () => void;
   onToggleTheme: () => void;
   onSwitchRole: (role: DemoRole) => void;
   onNavigate: (screen: SubScreen) => void;
   onNavigateMyFlat?: () => void;
-  onBack: () => void;
+  onBack?: () => void;
 }
 
 type DetailModalContent = {
@@ -53,6 +56,7 @@ export function ProfileScreen({
   role,
   unreadNotifications,
   isDark,
+  isTab = false,
   backendOffline,
   onRetryBackend,
   onToggleTheme,
@@ -75,6 +79,9 @@ export function ProfileScreen({
   const [detailModal, setDetailModal] = useState<DetailModalContent | null>(null);
   const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
   const [pickingPhoto, setPickingPhoto] = useState(false);
+  const [locationOpen, setLocationOpen] = useState(false);
+  const { location, saveLocation } = useUserLocation();
+  const locationLabel = formatLocationLabel(location);
 
   const profilePhotoUri =
     localPhotoUri ?? user.avatar_url ?? profileQuery.data?.avatar_url ?? null;
@@ -233,9 +240,15 @@ export function ProfileScreen({
   const householdItems = [
     {
       icon: "🏠",
-      label: "My Flat",
-      description: "Your current flat and flatmates",
+      label: role === "landlord" ? "My Properties" : "My Flat",
+      description: role === "landlord" ? "Manage your rental portfolio" : "Your current flat and flatmates",
       onPress: () => onNavigateMyFlat?.(),
+    },
+    {
+      icon: "📍",
+      label: "Location Preferences",
+      description: locationLabel ?? "Set where you search for rentals",
+      onPress: () => setLocationOpen(true),
     },
     {
       icon: "📋",
@@ -255,7 +268,7 @@ export function ProfileScreen({
     <>
       <ScreenShell
         title="Profile"
-        subtitle="Account & settings"
+        subtitle={isTab ? "Account & HomeHub settings" : undefined}
         onBack={onBack}
       >
         <View style={[styles.profile, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -444,6 +457,13 @@ export function ProfileScreen({
         content={detailModal}
         theme={theme}
         onClose={() => setDetailModal(null)}
+      />
+
+      <LocationModal
+        visible={locationOpen}
+        onClose={() => setLocationOpen(false)}
+        onSave={saveLocation}
+        initialName={locationLabel}
       />
 
       <Modal

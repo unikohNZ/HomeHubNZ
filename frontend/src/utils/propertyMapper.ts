@@ -30,6 +30,11 @@ export interface ApiProperty {
   full_address: string;
   lease_start?: string | null;
   lease_end?: string | null;
+  region?: string | null;
+  country?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  distance_km?: number | null;
 }
 
 const UI_TO_API_TYPE: Record<PropertyType, string> = {
@@ -85,6 +90,10 @@ export function fromApiProperty(api: ApiProperty, existing?: Property): Property
     image_url: api.image_urls?.[0] ?? existing?.image_url ?? DEFAULT_IMAGE,
     lease_start: formatLeaseDate(api.lease_start) ?? existing?.lease_start,
     lease_end: formatLeaseDate(api.lease_end) ?? existing?.lease_end,
+    latitude: api.latitude ?? existing?.latitude,
+    longitude: api.longitude ?? existing?.longitude,
+    distance_km: api.distance_km ?? existing?.distance_km,
+    region: api.region ?? existing?.region,
   };
 }
 

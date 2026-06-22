@@ -54,6 +54,23 @@ export interface EllaContext {
   overdueTenants?: EllaOverdueTenant[];
 }
 
+export interface EllaContextResponse {
+  role: string;
+  user_name: string;
+  data_source: string;
+  activity: EllaActivityItem[];
+  chat_preview: EllaPreviewMessage[];
+  property_count: number;
+  unread_notifications: number;
+  maintenance_active_count: number;
+  monthly_income?: number | null;
+  collected_this_month?: number | null;
+  outstanding_rent?: number | null;
+  next_rent_amount?: number | null;
+  next_rent_date?: string | null;
+  rent_days_until?: number | null;
+}
+
 export interface EllaQuickAction {
   id: string;
   icon: string;
@@ -65,10 +82,10 @@ export interface EllaQuickAction {
 export const ELLA_FLATMATE_ACTIONS: EllaQuickAction[] = [
   { id: "tenant-rent", icon: "💰", label: "Check Rent", userMessage: "Check my rent balance" },
   { id: "tenant-flat", icon: "🏠", label: "My Flat", userMessage: "Tell me about my flat" },
-  { id: "tenant-flatmates", icon: "👥", label: "Flatmates", userMessage: "Who are my flatmates" },
   { id: "tenant-rules", icon: "📄", label: "House Rules", userMessage: "View house rules" },
   { id: "tenant-maintenance", icon: "🔧", label: "Maintenance", userMessage: "Report maintenance" },
-  { id: "tenant-ask", icon: "💬", label: "Ask Ella", userMessage: "I have a question", accent: true },
+  { id: "tenant-messages", icon: "💬", label: "Messages", userMessage: "Open my messages" },
+  { id: "tenant-rentals", icon: "📍", label: "Find Rentals Near Me", userMessage: "Find flats near me", accent: true },
 ];
 
 export const ELLA_LANDLORD_ACTIONS: EllaQuickAction[] = [
@@ -77,7 +94,7 @@ export const ELLA_LANDLORD_ACTIONS: EllaQuickAction[] = [
   { id: "landlord-properties", icon: "🏠", label: "Properties", userMessage: "Manage properties" },
   { id: "landlord-maintenance", icon: "🔧", label: "Maintenance Requests", userMessage: "Review maintenance requests" },
   { id: "landlord-income", icon: "📊", label: "Income Report", userMessage: "View income report" },
-  { id: "landlord-ask", icon: "💬", label: "Ask Ella", userMessage: "I have a question", accent: true },
+  { id: "landlord-messages", icon: "💬", label: "Messages", userMessage: "Open my messages" },
 ];
 
 /** @deprecated Use getEllaQuickActions(role) */
@@ -213,20 +230,35 @@ export function buildRecentActivity(ctx: EllaContext): EllaActivityItem[] {
 
 export function buildChatPreview(ctx: EllaContext): EllaPreviewMessage[] {
   if (isLandlordRole(ctx.role)) {
-    const income = ctx.monthlyIncome ?? 8840;
-    const outstanding = ctx.outstandingRent ?? 680;
+    const income = ctx.monthlyIncome;
+    const outstanding = ctx.outstandingRent;
+    if (income == null && outstanding == null) {
+      return [
+        { role: "assistant", content: "Ask me about rent collection, tenants, or your income report." },
+        { role: "user", content: "Thanks Ella!" },
+        { role: "assistant", content: "You're welcome 😺" },
+      ];
+    }
     return [
       {
         role: "assistant",
-        content: `Your expected monthly income is ${formatCurrency(income)}. You have ${formatCurrency(outstanding)} outstanding across your properties.`,
+        content: `Your expected monthly income is ${formatCurrency(income ?? 0)}. You have ${formatCurrency(outstanding ?? 0)} outstanding across your properties.`,
       },
       { role: "user", content: "Thanks Ella!" },
       { role: "assistant", content: "You're welcome 😺" },
     ];
   }
 
-  const date = ctx.nextRentDate ?? "13 June 2026";
-  const amount = ctx.nextRentAmount ?? 360;
+  if (ctx.nextRentAmount == null && !ctx.nextRentDate) {
+    return [
+      { role: "assistant", content: "You're all caught up on rent right now." },
+      { role: "user", content: "Thanks Ella!" },
+      { role: "assistant", content: "You're welcome 😺" },
+    ];
+  }
+
+  const date = ctx.nextRentDate ?? "your next due date";
+  const amount = ctx.nextRentAmount ?? 0;
   return [
     {
       role: "assistant",
@@ -240,9 +272,16 @@ export function buildChatPreview(ctx: EllaContext): EllaPreviewMessage[] {
 function getFlatmateQuickActionReply(actionId: string, ctx: EllaContext): string {
   switch (actionId) {
     case "tenant-rent": {
-      const amount = ctx.nextRentAmount ?? 360;
-      const date = ctx.nextRentDate ?? "13 June 2026";
-      return `Your next rent is ${formatCurrency(amount)} due on ${date}. You're currently on track.`;
+      if (ctx.nextRentAmount == null && !ctx.nextRentDate) {
+        return "You're all caught up on rent — no upcoming payments due right now.";
+      }
+      const amount = ctx.nextRentAmount ?? 0;
+      const date = ctx.nextRentDate ?? "your next due date";
+      const status =
+        ctx.rentDaysUntil != null && ctx.rentDaysUntil < 0
+          ? `overdue by ${Math.abs(ctx.rentDaysUntil)} day${Math.abs(ctx.rentDaysUntil) === 1 ? "" : "s"}`
+          : "on track";
+      return `Your next rent is ${formatCurrency(amount)} due on ${date}. You're currently ${status}.`;
     }
     case "tenant-flat": {
       const name = ctx.propertyName ?? "your flat";
@@ -253,7 +292,7 @@ function getFlatmateQuickActionReply(actionId: string, ctx: EllaContext): string
     case "tenant-maintenance":
       return "Sure! Tell me what needs fixing and I'll help create a maintenance request.";
     case "tenant-rules":
-      return "Your house rules include quiet hours after 10 PM, no smoking inside, and keeping shared areas clean.";
+      return "Open My Flat → House Rules to view the rules saved for your flat.";
     case "tenant-message":
       return "Open Messages from More to chat with your landlord. I can help you draft a message if you'd like!";
     case "tenant-notices": {
@@ -261,20 +300,22 @@ function getFlatmateQuickActionReply(actionId: string, ctx: EllaContext): string
       if (count === 0) {
         return "You're all caught up — no new notices right now.";
       }
-      return `You have ${count} notification${count === 1 ? "" : "s"}: rent reminder, inspection update, and maintenance update.`;
+      return `You have ${count} unread notice${count === 1 ? "" : "s"}. Check More → Notifications for details.`;
     }
-    case "tenant-ask":
-      return "Ask me anything about your flat, rent, flatmates, house rules, maintenance, or documents. Just give me a meow! 😸";
+    case "tenant-messages":
+      return "Open Messages from the bottom tab to chat with your landlord and flatmates.";
+    case "tenant-rentals":
+      return "You're searching near your saved location. Open Find Rentals to browse flats nearby.";
     default:
       return "How can I help with your flat today?";
   }
 }
 
 function getLandlordQuickActionReply(actionId: string, ctx: EllaContext): string {
-  const income = ctx.monthlyIncome ?? 8840;
-  const collected = ctx.collectedThisMonth ?? 320;
-  const outstanding = ctx.outstandingRent ?? 680;
-  const propertyCount = ctx.propertyCount ?? 3;
+  const income = ctx.monthlyIncome ?? 0;
+  const collected = ctx.collectedThisMonth ?? 0;
+  const outstanding = ctx.outstandingRent ?? 0;
+  const propertyCount = ctx.propertyCount ?? 0;
   const pendingJoin = ctx.pendingJoinRequests ?? 0;
   const activeMaint = ctx.activeMaintenanceTitles ?? [];
   const overdue = ctx.overdueTenants ?? [];
@@ -328,6 +369,8 @@ function getLandlordQuickActionReply(actionId: string, ctx: EllaContext): string
       const occupancy = ctx.occupancyRate ?? 0;
       return `Monthly income forecast: ${formatCurrency(income)}. Collected: ${formatCurrency(collected)}. Outstanding: ${formatCurrency(outstanding)}. Occupancy: ${occupancy}%. Open Payments for the full report.`;
     }
+    case "landlord-messages":
+      return "Open Messages from the bottom tab to chat with tenants and contractors.";
     case "landlord-ask":
       return "Ask me about rent collection, tenants, maintenance, properties, or your income report. I'm on it! 😸";
     default:
@@ -335,11 +378,56 @@ function getLandlordQuickActionReply(actionId: string, ctx: EllaContext): string
   }
 }
 
-export function getQuickActionReply(actionId: string, ctx: EllaContext): string {
+export function getQuickActionReplyLocal(actionId: string, ctx: EllaContext): string {
   if (isLandlordRole(ctx.role)) {
     return getLandlordQuickActionReply(actionId, ctx);
   }
   return getFlatmateQuickActionReply(actionId, ctx);
+}
+
+/** @deprecated Use fetchEllaChat for API mode */
+export function getQuickActionReply(actionId: string, ctx: EllaContext): string {
+  return getQuickActionReplyLocal(actionId, ctx);
+}
+
+export async function fetchEllaContext(): Promise<EllaContextResponse> {
+  const { data } = await api.get<EllaContextResponse>("/ai/ella/context");
+  return data;
+}
+
+export async function fetchEllaChat(message: string, actionId?: string): Promise<string> {
+  const { data } = await api.post<{ reply: string; data_source?: string }>("/ai/ella/chat", {
+    message,
+    action_id: actionId ?? undefined,
+  });
+  const reply = data.reply?.trim();
+  if (!reply) throw new Error("Empty reply from Ella");
+  return reply;
+}
+
+export function mapApiContextToEllaContext(
+  apiCtx: EllaContextResponse,
+  fallback: EllaContext = {},
+): EllaContext {
+  const role: EllaUserRole =
+    apiCtx.role === "landlord" || apiCtx.role === "property_manager" || apiCtx.role === "admin"
+      ? "landlord"
+      : (fallback.role ?? "flatmate");
+
+  return {
+    ...fallback,
+    role,
+    userName: apiCtx.user_name || fallback.userName,
+    nextRentAmount: apiCtx.next_rent_amount ?? fallback.nextRentAmount,
+    nextRentDate: apiCtx.next_rent_date ?? fallback.nextRentDate,
+    rentDaysUntil: apiCtx.rent_days_until ?? fallback.rentDaysUntil,
+    notificationCount: apiCtx.unread_notifications ?? fallback.notificationCount,
+    maintenanceActive: apiCtx.maintenance_active_count ?? fallback.maintenanceActive,
+    monthlyIncome: apiCtx.monthly_income ?? fallback.monthlyIncome,
+    collectedThisMonth: apiCtx.collected_this_month ?? fallback.collectedThisMonth,
+    outstandingRent: apiCtx.outstanding_rent ?? fallback.outstandingRent,
+    propertyCount: apiCtx.property_count ?? fallback.propertyCount,
+  };
 }
 
 function matchFlatmateFreeText(text: string, ctx: EllaContext): string {
@@ -421,25 +509,26 @@ function matchFreeTextReply(text: string, ctx: EllaContext): string {
   return matchFlatmateFreeText(text, ctx);
 }
 
-export async function generateEllaReply(message: string, ctx: EllaContext = {}): Promise<string> {
+export async function generateEllaReply(
+  message: string,
+  ctx: EllaContext = {},
+  actionId?: string,
+): Promise<string> {
   const content = message.trim();
   if (!content) return "Say something and I'll help you out!";
 
-  const quickAction = findQuickAction(content, ctx);
-  if (quickAction) return getQuickActionReply(quickAction.id, ctx);
+  const quickAction = actionId ? undefined : findQuickAction(content, ctx);
+  const resolvedActionId = actionId ?? quickAction?.id;
 
   if (!isMockMode()) {
     try {
-      const { data } = await api.post<{ reply: string }>("/ai/ella/chat", {
-        message: content,
-        context: ctx,
-      });
-      if (data.reply?.trim()) return data.reply.trim();
+      return await fetchEllaChat(content, resolvedActionId);
     } catch {
-      // local fallback
+      return "I couldn't reach the server right now. Please check your connection and try again.";
     }
   }
 
+  if (resolvedActionId) return getQuickActionReplyLocal(resolvedActionId, ctx);
   return matchFreeTextReply(content, ctx);
 }
 

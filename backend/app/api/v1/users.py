@@ -7,6 +7,7 @@ from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.models.user import User
 from app.schemas.auth import UserResponse
+from app.schemas.location import UserLocationResponse, UserLocationUpdate
 from app.schemas.profile import AvatarUpdate, ProfileUpdate
 from app.services.profile_service import ProfileService
 from app.services.supabase_storage_service import storage_service
@@ -44,3 +45,22 @@ async def upload_me_photo(
     url = await storage_service.upload_profile_photo(content, current_user.id, ext)
     service = ProfileService(db)
     return await service.update_avatar(current_user, AvatarUpdate(avatar_url=url))
+
+
+@router.get("/me/location", response_model=UserLocationResponse)
+async def get_my_location(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = ProfileService(db)
+    return await service.get_location(current_user)
+
+
+@router.put("/me/location", response_model=UserLocationResponse)
+async def update_my_location(
+    data: UserLocationUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = ProfileService(db)
+    return await service.update_location(current_user, data)

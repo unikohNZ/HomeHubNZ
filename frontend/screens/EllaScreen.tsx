@@ -22,16 +22,17 @@ import { ELLA_NAME } from "../constants/branding";
 import { ELLA_IMAGES, ELLA_PAGE } from "../src/constants/ellaTheme";
 import { spacing } from "../constants/design";
 import { DemoRole } from "../types";
+import { useEllaContext } from "../src/hooks/useElla";
 import {
-  buildChatPreview,
-  buildRecentActivity,
   createEllaMessage,
   EllaContext,
   EllaMessage,
+  fetchEllaChat,
   generateEllaReply,
   getEllaQuickActions,
-  getQuickActionReply,
+  getQuickActionReplyLocal,
 } from "../src/services/ellaService";
+import { isMockMode } from "../src/utils/dataSource";
 
 const NAV_CLEARANCE = 100;
 const TYPING_MS = 850;
@@ -54,8 +55,9 @@ interface EllaScreenProps {
   occupancyRate?: number;
   activeMaintenanceTitles?: string[];
   overdueTenants?: EllaContext["overdueTenants"];
-  onOpenMenu?: () => void;
   onOpenSettings?: () => void;
+  onOpenMessages?: () => void;
+  onOpenPropertySearch?: () => void;
 }
 
 function SectionTitle({ children }: { children: string }) {
@@ -80,8 +82,9 @@ export function EllaScreen({
   occupancyRate,
   activeMaintenanceTitles,
   overdueTenants,
-  onOpenMenu,
   onOpenSettings,
+  onOpenMessages,
+  onOpenPropertySearch,
 }: EllaScreenProps) {
   const scrollRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
@@ -90,7 +93,7 @@ export function EllaScreen({
   const [liveMessages, setLiveMessages] = useState<EllaMessage[]>([]);
   const [chatExpanded, setChatExpanded] = useState(false);
 
-  const ctx: EllaContext = useMemo(
+  const fallbackCtx = useMemo<EllaContext>(
     () => ({
       role,
       userName,
@@ -131,38 +134,50 @@ export function EllaScreen({
     ],
   );
 
-  const quickActions = useMemo(() => getEllaQuickActions(role), [role]);
+  const { ctx, activityItems, previewMessages } = useEllaContext(fallbackCtx);
 
-  const activityItems = useMemo(() => buildRecentActivity(ctx), [ctx]);
-  const previewMessages = useMemo(() => buildChatPreview(ctx), [ctx]);
+  const quickActions = useMemo(() => getEllaQuickActions(role), [role]);
   const showPreview = liveMessages.length === 0 && !chatExpanded;
 
   const scrollToEnd = () => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
   };
 
-  const sendExchange = async (userText: string, replyText: string) => {
+  const handleQuickAction = async (actionId: string, userMessage: string) => {
+    if (typing) return;
+    if (actionId === "tenant-messages" || actionId === "landlord-messages") {
+      onOpenMessages?.();
+      return;
+    }
+    if (actionId === "tenant-rentals") {
+      onOpenPropertySearch?.();
+      return;
+    }
+
     setChatExpanded(true);
-    setLiveMessages((prev) => [...prev, createEllaMessage(userText, "user")]);
-    setDraft("");
+    setLiveMessages((prev) => [...prev, createEllaMessage(userMessage, "user")]);
     setTyping(true);
     scrollToEnd();
 
     await new Promise((r) => setTimeout(r, TYPING_MS));
 
-    setLiveMessages((prev) => [...prev, createEllaMessage(replyText, "assistant")]);
-    setTyping(false);
-    scrollToEnd();
-  };
-
-  const handleQuickAction = async (actionId: string, userMessage: string) => {
-    if (typing) return;
-    if (actionId === "tenant-ask" || actionId === "landlord-ask") {
-      setChatExpanded(true);
-      inputRef.current?.focus();
-      return;
+    try {
+      const reply = isMockMode()
+        ? getQuickActionReplyLocal(actionId, ctx)
+        : await fetchEllaChat(userMessage, actionId);
+      setLiveMessages((prev) => [...prev, createEllaMessage(reply, "assistant")]);
+    } catch {
+      setLiveMessages((prev) => [
+        ...prev,
+        createEllaMessage(
+          "I couldn't reach the server right now. Please check your connection and try again.",
+          "assistant",
+        ),
+      ]);
+    } finally {
+      setTyping(false);
+      scrollToEnd();
     }
-    await sendExchange(userMessage, getQuickActionReply(actionId, ctx));
   };
 
   const handleSend = async () => {
@@ -196,9 +211,7 @@ export function EllaScreen({
         <View style={styles.inner}>
           {/* Header */}
           <View style={styles.header}>
-            <Pressable style={styles.headerBtn} onPress={onOpenMenu} accessibilityLabel="Menu">
-              <Text style={styles.headerIcon}>☰</Text>
-            </Pressable>
+            <View style={styles.headerBtnSpacer} />
             <View style={styles.headerCenter}>
               <Text style={styles.headerTitle}>{ELLA_NAME}</Text>
               <View style={styles.onlineRow}>
@@ -224,7 +237,7 @@ export function EllaScreen({
               keyboardShouldPersistTaps="handled"
             >
               <EllaFloatingHero />
-              <EllaWelcomeBubble userName={userName} role={role} />
+              <EllaWelcomeBubble userName={ctx.userName ?? userName} role={role} />
 
               <SectionTitle>What can I help with?</SectionTitle>
               <View style={styles.actionGrid}>
@@ -330,6 +343,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(124, 58, 237, 0.08)",
   },
+  headerBtnSpacer: { width: 42, height: 42 },
   headerIcon: { fontSize: 18 },
   headerCenter: { alignItems: "center" },
   headerTitle: {

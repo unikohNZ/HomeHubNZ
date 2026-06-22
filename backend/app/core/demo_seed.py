@@ -78,6 +78,10 @@ DEMO_PROPERTIES = [
         "rent_amount": Decimal("450.00"),
         "bond_amount": Decimal("1800.00"),
         "description": "Sunny apartment walking distance to the mount and local cafes.",
+        "region": "Bay of Plenty",
+        "country": "New Zealand",
+        "latitude": -37.638,
+        "longitude": 176.183,
     },
     {
         "name": "Tauranga Townhouse",
@@ -93,6 +97,10 @@ DEMO_PROPERTIES = [
         "rent_amount": Decimal("520.00"),
         "bond_amount": Decimal("2080.00"),
         "description": "Modern townhouse close to the city centre and transport links.",
+        "region": "Bay of Plenty",
+        "country": "New Zealand",
+        "latitude": -37.687,
+        "longitude": 176.165,
     },
     {
         "name": "Papamoa Beach House",
@@ -108,6 +116,10 @@ DEMO_PROPERTIES = [
         "rent_amount": Decimal("580.00"),
         "bond_amount": Decimal("2320.00"),
         "description": "Relaxed beach house with outdoor living and sea breezes.",
+        "region": "Bay of Plenty",
+        "country": "New Zealand",
+        "latitude": -37.717,
+        "longitude": 176.317,
     },
 ]
 
@@ -189,6 +201,9 @@ async def _get_or_create_property(
     )
     prop = result.scalar_one_or_none()
     if prop:
+        for key in ("latitude", "longitude", "region", "country"):
+            if key in spec and getattr(prop, key, None) in (None, ""):
+                setattr(prop, key, spec[key])
         return prop
 
     prop = Property(

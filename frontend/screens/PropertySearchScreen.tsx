@@ -8,6 +8,8 @@ import { SectionHeader } from "../components/ui/SectionHeader";
 import { useTheme } from "../context/ThemeContext";
 import { radius, spacing } from "../constants/design";
 import { usePropertySearch } from "../src/hooks/useProperties";
+import { formatLocationLabel, useUserLocation } from "../src/hooks/useUserLocation";
+import { RADIUS_OPTIONS_KM } from "../src/services/locationService";
 import { Property } from "../types/property";
 
 interface PropertySearchScreenProps {
@@ -26,7 +28,10 @@ export function PropertySearchScreen({
   onRequestJoin,
 }: PropertySearchScreenProps) {
   const { theme } = useTheme();
-  const [city, setCity] = useState("");
+  const { location } = useUserLocation();
+  const locationLabel = formatLocationLabel(location);
+  const [city, setCity] = useState(locationLabel?.split(",")[0] ?? "");
+  const [radiusKm, setRadiusKm] = useState<number>(10);
   const [minRent, setMinRent] = useState("");
   const [maxRent, setMaxRent] = useState("");
   const [availableRooms, setAvailableRooms] = useState("");
@@ -34,13 +39,17 @@ export function PropertySearchScreen({
 
   const filters = useMemo(
     () => ({
+      location: locationLabel ?? city.trim() || undefined,
+      lat: location?.preferred_latitude ?? undefined,
+      lng: location?.preferred_longitude ?? undefined,
+      radius_km: location?.preferred_latitude ? radiusKm : undefined,
       city: city.trim() || undefined,
       min_rent: minRent ? parseFloat(minRent) : undefined,
       max_rent: maxRent ? parseFloat(maxRent) : undefined,
       min_rooms: availableRooms ? parseInt(availableRooms, 10) : undefined,
       min_bedrooms: bedrooms ? parseInt(bedrooms, 10) : undefined,
     }),
-    [city, minRent, maxRent, availableRooms, bedrooms],
+    [city, locationLabel, location, radiusKm, minRent, maxRent, availableRooms, bedrooms],
   );
 
   const searchQuery = usePropertySearch(filters);
@@ -71,11 +80,32 @@ export function PropertySearchScreen({
 
       <View style={styles.filters}>
         <FilterField
-          label="City"
-          value={city}
+          label="Location"
+          value={locationLabel ?? city}
           onChangeText={setCity}
-          placeholder="e.g. Tauranga"
+          placeholder="e.g. Mount Maunganui"
         />
+        {location?.preferred_latitude != null && (
+          <View style={styles.radiusRow}>
+            {RADIUS_OPTIONS_KM.map((km) => (
+              <Pressable
+                key={km}
+                style={[
+                  styles.radiusChip,
+                  {
+                    backgroundColor: radiusKm === km ? theme.primary : theme.card,
+                    borderColor: theme.border,
+                  },
+                ]}
+                onPress={() => setRadiusKm(km)}
+              >
+                <Text style={{ color: radiusKm === km ? "#fff" : theme.text, fontWeight: "700", fontSize: 12 }}>
+                  {km} km
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
         <View style={styles.row}>
           <FilterField
             label="Min rent / wk"
@@ -208,6 +238,13 @@ const styles = StyleSheet.create({
   },
   hint: { fontSize: 14, marginBottom: spacing.md },
   cardWrap: { marginBottom: spacing.md },
+  radiusRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  radiusChip: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
   metaRow: {
     flexDirection: "row",
     alignItems: "center",

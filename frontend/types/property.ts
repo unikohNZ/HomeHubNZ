@@ -19,6 +19,10 @@ export interface Property {
   image_url: string;
   lease_start?: string;
   lease_end?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  distance_km?: number | null;
+  region?: string | null;
 }
 
 export interface PropertyFormData {

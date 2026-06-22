@@ -32,6 +32,8 @@ export type SubScreen =
   | "property-health"
   | "property-search"
   | "property-detail"
-  | "landlord-notifications";
+  | "landlord-notifications"
+  | "my-flat"
+  | "properties-manage";
 
 export type OverlayScreen = "chat" | null;

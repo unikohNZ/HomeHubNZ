@@ -72,7 +72,6 @@ import { queryClient, queryKeys } from "./src/lib/queryClient";
 import { ChatScreen } from "./screens/ChatScreen";
 import { DashboardScreen } from "./screens/DashboardScreen";
 import { EllaScreen } from "./screens/EllaScreen";
-import { MoreScreen } from "./screens/MoreScreen";
 import { FlatFeatureRouter } from "./screens/FlatFeatureRouter";
 import { MessagesScreen } from "./screens/MessagesScreen";
 import { MyFlatScreen } from "./screens/MyFlatScreen";
@@ -729,13 +728,13 @@ function HomeHubApp() {
     showToast(`Switched to ${role} demo`);
   };
 
-  const navigateTab = (t: TabId | LegacyTabId) => {
-    if (t === "messages") {
-      openSubScreen("messages");
+  const navigateTab = (t: TabId | LegacyTabId | "messages" | "profile") => {
+    if (t === "myflat") {
+      openSubScreen("my-flat");
       return;
     }
-    if (t === "profile") {
-      openSubScreen("profile");
+    if (t === "properties") {
+      openSubScreen("properties-manage");
       return;
     }
     if (t === "tenants") {
@@ -746,20 +745,21 @@ function HomeHubApp() {
       openSubScreen("maintenance");
       return;
     }
-    if (t === "rent") {
-      setTab("payments");
+    const nextTab: TabId =
+      t === "rent" || t === "payments"
+        ? "payments"
+        : t === "more"
+          ? "profile"
+          : (t as TabId);
+    if (nextTab === "home" || nextTab === "messages" || nextTab === "ella" || nextTab === "payments" || nextTab === "profile") {
+      setTab(nextTab);
       setSubScreen(null);
       setOverlay(null);
       setActiveChatId(null);
-      return;
     }
-    setTab(t as TabId);
-    setSubScreen(null);
-    setOverlay(null);
-    setActiveChatId(null);
   };
 
-  const openMessages = () => openSubScreen("messages");
+  const openMessages = () => navigateTab("messages");
 
   const goBackFromProfile = () => {
     closeSubScreen();
@@ -1076,7 +1076,7 @@ function HomeHubApp() {
       showToast(`Calling ${name} at ${phone} (mock)`),
   };
 
-  const renderProfile = () => (
+  const renderProfile = (isTab = false) => (
     <ProfileScreen
       role={demoRole}
       propertyCount={properties.length}
@@ -1084,13 +1084,14 @@ function HomeHubApp() {
       requestCount={joinRequests.length}
       unreadNotifications={unreadNotifications}
       isDark={isDark}
+      isTab={isTab}
       backendOffline={propertiesOffline || messagesUsingCache}
       onRetryBackend={handleRefresh}
       onToggleTheme={toggleTheme}
       onSwitchRole={switchRole}
       onNavigate={openSubScreen}
-      onNavigateMyFlat={() => navigateTab("myflat")}
-      onBack={goBackFromProfile}
+      onNavigateMyFlat={() => navigateTab(demoRole === "landlord" ? "properties" : "myflat")}
+      onBack={isTab ? undefined : goBackFromProfile}
     />
   );
 
@@ -1127,7 +1128,7 @@ function HomeHubApp() {
     }
 
     if (subScreen === "profile") {
-      return renderProfile();
+      return renderProfile(false);
     }
 
     if (subScreen === "messages") {
@@ -1138,6 +1139,75 @@ function HomeHubApp() {
           onBack={closeSubScreen}
           refreshing={refreshing}
           onRefresh={handleRefresh}
+        />
+      );
+    }
+
+    if (subScreen === "my-flat") {
+      return (
+        <MyFlatScreen
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchResults={searchResults}
+          allProperties={properties}
+          joinedProperty={joinedProperty}
+          myJoinRequests={myJoinRequests}
+          nextRentDate={nextRentDate}
+          nextRentAmount={nextRentAmount}
+          billsDueCount={billsDueCount}
+          choresPending={choresPending}
+          maintenanceActive={maintenanceActive}
+          documentCount={documentCount}
+          unreadAnnouncements={unreadAnnouncements}
+          shoppingPending={shoppingPending}
+          upcomingVisitors={upcomingVisitors}
+          propertiesLoading={propertiesLoading}
+          propertiesError={propertiesError}
+          propertiesOffline={propertiesOffline}
+          houseRules={flatHouseRules}
+          onRetryProperties={reloadProperties}
+          onOpenPropertySearch={() => openSubScreen("property-search")}
+          onRequestJoin={requestJoin}
+          onCancelRequest={cancelJoinRequest}
+          onLeaveFlat={leaveFlat}
+          onNavigateFeature={openSubScreen}
+          onMessageFlatmates={() => {
+            navigateTab("messages");
+            const flatmateChat = conversations.find((c) => c.category === "flatmate");
+            if (flatmateChat) openChat(flatmateChat.id);
+          }}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+        />
+      );
+    }
+
+    if (subScreen === "properties-manage" && demoRole === "landlord") {
+      return (
+        <PropertiesScreen
+          properties={properties}
+          showForm={showPropertyForm}
+          editing={!!editingId}
+          form={form}
+          propertiesLoading={propertiesLoading}
+          propertiesSaving={propertiesSaving}
+          propertiesError={propertiesError}
+          propertiesSource={propertiesSource}
+          propertiesOffline={propertiesOffline}
+          onRetryProperties={reloadProperties}
+          onFormChange={(k, v) => setForm((f) => ({ ...f, [k]: v }))}
+          onShowForm={() => {
+            resetForm();
+            setShowPropertyForm(true);
+          }}
+          onCloseForm={resetForm}
+          onSave={saveProperty}
+          onEdit={loadForm}
+          onDelete={deleteProperty}
+          onAdjustRent={adjustRent}
+          onViewProperty={openPropertyDetail}
+          formImageUri={propertyFormImage}
+          onPickPropertyPhoto={pickPropertyPhoto}
         />
       );
     }
@@ -1242,198 +1312,64 @@ function HomeHubApp() {
       );
     }
 
-    if (demoRole === "flatmate") {
-      switch (tab) {
-        case "home":
-          return (
-            <DashboardScreen
-              role="flatmate"
-              property={joinedProperty}
-              nextRentDate={nextRentDate}
-              nextRentAmount={nextRentAmount}
-              rentDaysUntil={rentDaysUntil}
-              occupancyRate={0}
-              maintenanceCount={maintenanceActive}
-              unreadMessages={unreadMessages}
-              unreadNotifications={unreadNotifications}
-              notifications={notifications}
-              monthlyIncome={0}
-              propertyCount={0}
-              pendingRequests={0}
-              outstandingRent={0}
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              onMyFlat={() => navigateTab("myflat")}
-              onMessages={openMessages}
-              onMaintenance={() => openSubScreen("maintenance")}
-              onCalendar={() => openSubScreen("calendar")}
-              onPayRent={() => navigateTab("payments")}
-              onViewHistory={() => navigateTab("payments")}
-              onProperties={() => {}}
-              onTenants={() => {}}
-              onPayments={() => navigateTab("payments")}
-              onProfile={() => openSubScreen("profile")}
-              onNotifications={() => openSubScreen("notifications")}
-              userName={user?.name}
-              avatarUrl={user?.avatar_url}
-            />
-          );
-        case "myflat":
-          return (
-            <MyFlatScreen
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              searchResults={searchResults}
-              allProperties={properties}
-              joinedProperty={joinedProperty}
-              myJoinRequests={myJoinRequests}
-              nextRentDate={nextRentDate}
-              nextRentAmount={nextRentAmount}
-              billsDueCount={billsDueCount}
-              choresPending={choresPending}
-              maintenanceActive={maintenanceActive}
-              documentCount={documentCount}
-              unreadAnnouncements={unreadAnnouncements}
-              shoppingPending={shoppingPending}
-              upcomingVisitors={upcomingVisitors}
-              propertiesLoading={propertiesLoading}
-              propertiesError={propertiesError}
-              propertiesOffline={propertiesOffline}
-              houseRules={flatHouseRules}
-              onRetryProperties={reloadProperties}
-              onOpenPropertySearch={() => openSubScreen("property-search")}
-              onRequestJoin={requestJoin}
-              onCancelRequest={cancelJoinRequest}
-              onLeaveFlat={leaveFlat}
-              onNavigateFeature={openSubScreen}
-              onMessageFlatmates={() => {
-                openMessages();
-                const flatmateChat = conversations.find((c) => c.category === "flatmate");
-                if (flatmateChat) {
-                  openChat(flatmateChat.id);
-                } else if (conversations[0]) {
-                  openChat(conversations[0].id);
-                } else {
-                  showToast("No conversations yet");
-                }
-              }}
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-            />
-          );
-        case "payments":
-          return (
-            <RentScreen
-              sections={rentSections}
-              onUploadReceipt={() => showToast("Receipt uploaded (mock)")}
-              onDownloadLedger={() => showToast("Ledger downloaded (mock)")}
-              onRecordPayment={() => showToast("Payment recorded (mock)")}
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-            />
-          );
-        case "ella":
-          return (
-            <EllaScreen
-              role="flatmate"
-              userName={user?.name}
-              propertyName={joinedProperty?.name}
-              nextRentDate={nextRentDate}
-              nextRentAmount={nextRentAmount}
-              rentDaysUntil={rentDaysUntil}
-              notificationCount={unreadNotifications}
-              maintenanceActive={maintenanceActive}
-              documentCount={documentCount}
-              onOpenMenu={() => navigateTab("more")}
-              onOpenSettings={() => openSubScreen("profile")}
-            />
-          );
-        case "more":
-          return (
-            <MoreScreen
-              role="flatmate"
-              onOpenFeature={openSubScreen}
-              onOpenMessages={openMessages}
-              onOpenProfile={() => openSubScreen("profile")}
-              unreadMessages={unreadMessages}
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-            />
-          );
-        default:
-          return null;
-      }
-    }
-
     switch (tab) {
       case "home":
         return (
           <DashboardScreen
-            role="landlord"
-            property={properties[0] ?? null}
-            nextRentDate={null}
-            nextRentAmount={0}
-            rentDaysUntil={null}
+            role={demoRole}
+            property={demoRole === "flatmate" ? joinedProperty : properties[0] ?? null}
+            properties={properties}
+            nextRentDate={nextRentDate}
+            nextRentAmount={nextRentAmount}
+            rentDaysUntil={rentDaysUntil}
             occupancyRate={occupancyRate}
             maintenanceCount={maintenanceActive}
             unreadMessages={unreadMessages}
-            unreadNotifications={landlordNotifications.filter((n) => !n.read).length}
+            unreadNotifications={
+              demoRole === "landlord"
+                ? landlordNotifications.filter((n) => !n.read).length
+                : unreadNotifications
+            }
             notifications={notifications}
-            landlordNotifications={landlordNotifications}
-            nextInspectionDate={nextInspectionDate}
-            inspectionReminder={inspectionReminder}
             monthlyIncome={monthlyIncome}
+            collectedThisMonth={collectedThisMonth}
             propertyCount={properties.length}
             pendingRequests={pendingLandlordRequests.length}
             outstandingRent={rentSections.current_due_total + rentSections.overdue_total}
+            overdueCount={overdueTenants.length}
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            onMyFlat={() => navigateTab("properties")}
+            onMyFlat={() => navigateTab("myflat")}
             onMessages={openMessages}
             onMaintenance={() => openSubScreen("maintenance")}
-            onCalendar={scheduleInspection}
             onPayRent={() => navigateTab("payments")}
-            onViewHistory={() => navigateTab("payments")}
-            onScheduleInspection={scheduleInspection}
+            onAskElla={() => navigateTab("ella")}
             onProperties={() => navigateTab("properties")}
             onTenants={() => openSubScreen("tenants")}
             onPayments={() => navigateTab("payments")}
-            onProfile={() => openSubScreen("profile")}
-            onNotifications={() => openSubScreen("landlord-notifications")}
+            onProfile={() => navigateTab("profile")}
+            onNotifications={() =>
+              openSubScreen(demoRole === "landlord" ? "landlord-notifications" : "notifications")
+            }
+            onNavigateTab={navigateTab}
+            onNavigateSub={openSubScreen}
             userName={user?.name}
             avatarUrl={user?.avatar_url}
           />
         );
-      case "properties":
+      case "messages":
         return (
-          <PropertiesScreen
-            properties={properties}
-            showForm={showPropertyForm}
-            editing={!!editingId}
-            form={form}
-            propertiesLoading={propertiesLoading}
-            propertiesSaving={propertiesSaving}
-            propertiesError={propertiesError}
-            propertiesSource={propertiesSource}
-            propertiesOffline={propertiesOffline}
-            onRetryProperties={reloadProperties}
-            onFormChange={(k, v) => setForm((f) => ({ ...f, [k]: v }))}
-            onShowForm={() => {
-              resetForm();
-              setShowPropertyForm(true);
-            }}
-            onCloseForm={resetForm}
-            onSave={saveProperty}
-            onEdit={loadForm}
-            onDelete={deleteProperty}
-            onAdjustRent={adjustRent}
-            onViewProperty={openPropertyDetail}
-            formImageUri={propertyFormImage}
-            onPickPropertyPhoto={pickPropertyPhoto}
+          <MessagesScreen
+            conversations={conversations}
+            onOpenChat={openChat}
+            isTab
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            onCompose={() => showToast("Start a conversation from a property or tenant")}
           />
         );
       case "payments":
-        return (
+        return demoRole === "landlord" ? (
           <LandlordPaymentsScreen
             sections={rentSections}
             expectedMonthlyIncome={monthlyIncome}
@@ -1449,19 +1385,28 @@ function HomeHubApp() {
             onViewRentReceipt={viewRentReceipt}
             onMessageTenant={(conversationId) => openChat(conversationId)}
           />
+        ) : (
+          <RentScreen
+            sections={rentSections}
+            onUploadReceipt={() => showToast("Receipt uploaded (mock)")}
+            onDownloadLedger={() => showToast("Ledger downloaded (mock)")}
+            onRecordPayment={() => showToast("Payment recorded (mock)")}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+          />
         );
       case "ella":
         return (
           <EllaScreen
-            role="landlord"
+            role={demoRole}
             userName={user?.name}
-            propertyName={properties[0]?.name}
+            propertyName={joinedProperty?.name ?? properties[0]?.name}
             nextRentDate={nextRentDate}
             nextRentAmount={nextRentAmount}
             rentDaysUntil={rentDaysUntil}
-            notificationCount={landlordNotifications.filter((n) => !n.read).length}
+            notificationCount={unreadNotifications}
             maintenanceActive={maintenanceActive}
-            documentCount={landlordDocuments.length}
+            documentCount={documentCount}
             monthlyIncome={monthlyIncome}
             collectedThisMonth={collectedThisMonth}
             outstandingRent={rentSections.current_due_total + rentSections.overdue_total}
@@ -1470,26 +1415,13 @@ function HomeHubApp() {
             occupancyRate={occupancyRate}
             activeMaintenanceTitles={activeMaintenanceTitles}
             overdueTenants={overdueTenants}
-            onOpenMenu={() => navigateTab("more")}
-            onOpenSettings={() => openSubScreen("profile")}
-          />
-        );
-      case "more":
-        return (
-          <MoreScreen
-            role="landlord"
-            onOpenFeature={openSubScreen}
+            onOpenSettings={() => navigateTab("profile")}
             onOpenMessages={openMessages}
-            onOpenProfile={() => openSubScreen("profile")}
-            onOpenTenants={() => openSubScreen("tenants")}
-            onOpenMaintenance={() => openSubScreen("maintenance")}
-            onOpenProperties={() => navigateTab("properties")}
-            onOpenNotifications={() => openSubScreen("landlord-notifications")}
-            unreadMessages={unreadMessages}
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
+            onOpenPropertySearch={() => openSubScreen("property-search")}
           />
         );
+      case "profile":
+        return renderProfile(true);
       default:
         return null;
     }
@@ -1511,15 +1443,9 @@ function HomeHubApp() {
 
         {!hideNav && (
           <BottomNavigation
-            role={demoRole}
             active={tab}
             onChange={navigateTab}
             unreadMessages={unreadMessages}
-            unreadNotifications={
-              demoRole === "landlord"
-                ? landlordNotifications.filter((n) => !n.read).length
-                : unreadNotifications
-            }
           />
         )}
       </SafeAreaView>

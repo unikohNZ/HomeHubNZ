@@ -18,6 +18,7 @@ from app.schemas.property import (
     PropertyResponse,
     PropertyUpdate,
 )
+from app.utils.geo import coords_for_place
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,11 @@ class PropertyService:
             )
 
         max_flatmates = data.max_flatmates or max(data.bedrooms, data.available_rooms + 1)
+        lat, lng = data.latitude, data.longitude
+        if (lat is None or lng is None) and (data.suburb or data.city):
+            guessed = coords_for_place(f"{data.suburb} {data.city}")
+            if guessed:
+                lat, lng = guessed
         prop = Property(
             owner_id=owner.id,
             name=data.name,
@@ -43,6 +49,10 @@ class PropertyService:
             suburb=data.suburb,
             city=data.city,
             postcode=data.postcode,
+            region=data.region,
+            country=data.country or "New Zealand",
+            latitude=lat,
+            longitude=lng,
             property_type=data.property_type,
             bedrooms=data.bedrooms,
             bathrooms=data.bathrooms,
@@ -74,8 +84,18 @@ class PropertyService:
         return self._to_response(prop)
 
     async def search(self, **filters) -> List[PropertyResponse]:
-        properties = await self.property_repo.search_published(**filters)
-        return [self._to_response(p) for p in properties]
+        lat = filters.pop("lat", None)
+        lng = filters.pop("lng", None)
+        radius_km = filters.pop("radius_km", None)
+        location = filters.pop("location", None)
+        rows = await self.property_repo.search_published(
+            lat=lat,
+            lng=lng,
+            radius_km=radius_km,
+            location=location,
+            **filters,
+        )
+        return [self._to_response(p, distance_km=d) for p, d in rows]
 
     async def get_by_id(self, property_id: int) -> PropertyResponse:
         prop = await self.property_repo.get_with_relations(property_id)
@@ -188,7 +208,7 @@ class PropertyService:
     def _format_date(self, value: Optional[date]) -> Optional[str]:
         return value.isoformat() if value else None
 
-    def _to_response(self, prop: Property) -> PropertyResponse:
+    def _to_response(self, prop: Property, distance_km: Optional[float] = None) -> PropertyResponse:
         image_urls: Optional[list[str]] = None
         if prop.images:
             image_urls = [img.url for img in sorted(prop.images, key=lambda i: (not i.is_primary, i.sort_order))]
@@ -223,5 +243,10 @@ class PropertyService:
             full_address=prop.full_address,
             address_line1=prop.address_line1,
             rent_amount=prop.rent_amount,
+            region=prop.region,
+            country=prop.country,
+            latitude=prop.latitude,
+            longitude=prop.longitude,
+            distance_km=distance_km,
         )
 
