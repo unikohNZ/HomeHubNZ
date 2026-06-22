@@ -1,6 +1,6 @@
 import { SubScreen } from "../types/navigation";
 
-export type FeatureTabId = "rent" | "messages";
+export type FeatureTabId = "payments" | "messages";
 
 export type FeatureItem =
   | { type: "screen"; id: SubScreen; label: string; icon: string }
@@ -34,7 +34,7 @@ export const FEATURE_CATEGORIES: FeatureCategoryDef[] = [
     icon: "💰",
     defaultExpanded: true,
     items: [
-      { type: "tab", id: "rent", label: "Rent", icon: "💰" },
+      { type: "tab", id: "payments", label: "Payments", icon: "💰" },
       { type: "screen", id: "bills", label: "Bills", icon: "💡" },
       { type: "screen", id: "expenses", label: "Expenses", icon: "💳" },
       { type: "screen", id: "bond-tracker", label: "Bond", icon: "🏦" },
@@ -72,7 +72,7 @@ export const FEATURE_CATEGORIES: FeatureCategoryDef[] = [
     icon: "✨",
     defaultExpanded: false,
     items: [
-      { type: "screen", id: "ai-assistant", label: "AI Assistant", icon: "🤖" },
+      { type: "screen", id: "ai-assistant", label: "Ella AI", icon: "🐱" },
       { type: "screen", id: "property-health", label: "Property Health", icon: "💚" },
       { type: "screen", id: "flat-feed", label: "Flat Feed", icon: "📰" },
       { type: "screen", id: "announcements", label: "Announcements", icon: "📢" },
@@ -82,7 +82,7 @@ export const FEATURE_CATEGORIES: FeatureCategoryDef[] = [
 ];
 
 export const DEFAULT_FAVORITE_KEYS = [
-  "tab:rent",
+  "tab:payments",
   "screen:house-rules",
   "tab:messages",
   "screen:emergency",

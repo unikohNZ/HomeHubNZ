@@ -71,6 +71,8 @@ import { useHouseRules } from "./src/hooks/useProperties";
 import { queryClient, queryKeys } from "./src/lib/queryClient";
 import { ChatScreen } from "./screens/ChatScreen";
 import { DashboardScreen } from "./screens/DashboardScreen";
+import { EllaScreen } from "./screens/EllaScreen";
+import { MoreScreen } from "./screens/MoreScreen";
 import { FlatFeatureRouter } from "./screens/FlatFeatureRouter";
 import { MessagesScreen } from "./screens/MessagesScreen";
 import { MyFlatScreen } from "./screens/MyFlatScreen";
@@ -84,7 +86,7 @@ import { NotificationsScreen } from "./screens/NotificationsScreen";
 import { RentScreen } from "./screens/RentScreen";
 import { MaintenanceScreen } from "./screens/MaintenanceScreen";
 import { TenantsScreen } from "./screens/TenantsScreen";
-import { DemoRole, OverlayScreen, SubScreen, TabId } from "./types";
+import { DemoRole, LegacyTabId, OverlayScreen, SubScreen, TabId } from "./types";
 import { CalendarEvent, FeedPost, HouseRule, MaintenanceStatus, RuleCategory } from "./types/flat";
 import { LandlordDocument, LandlordTenant } from "./types/landlord";
 import { AvailabilityStatus } from "./types/flatExtended";
@@ -252,7 +254,6 @@ function HomeHubApp() {
   const [form, setForm] = useState<PropertyFormData>(EMPTY_PROPERTY_FORM);
   const [leftFlat, setLeftFlat] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [previousTab, setPreviousTab] = useState<TabId>("home");
 
   useEffect(() => {
     setTab("home");
@@ -345,6 +346,38 @@ function HomeHubApp() {
     (c) => c.assigned_id === CURRENT_USER_ID && c.status !== "completed",
   ).length;
   const maintenanceActive = maintenance.filter((m) => m.status !== "completed").length;
+  const activeMaintenanceTitles = useMemo(
+    () => maintenance.filter((m) => m.status !== "completed").map((m) => m.title),
+    [maintenance],
+  );
+  const overdueTenants = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const seen = new Set<string>();
+    return tenantPayments
+      .filter((p) => {
+        if (p.payment_date) return false;
+        const due = new Date(p.due_date);
+        due.setHours(0, 0, 0, 0);
+        return due < today;
+      })
+      .filter((p) => {
+        const key = `${p.tenant_id}-${p.due_date}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((p) => {
+        const due = new Date(p.due_date);
+        due.setHours(0, 0, 0, 0);
+        return {
+          tenantName: p.tenant_name,
+          propertyName: p.property_name,
+          amount: p.weekly_rent,
+          daysOverdue: Math.max(1, Math.floor((today.getTime() - due.getTime()) / 86400000)),
+        };
+      });
+  }, [tenantPayments]);
   const documentCount = documents.length;
   const unreadAnnouncements = announcements.filter((a) => !a.read).length;
   const shoppingPending = shopping.filter((s) => !s.purchased).length;
@@ -363,9 +396,6 @@ function HomeHubApp() {
   }, [properties, searchQuery]);
 
   const openSubScreen = (screen: SubScreen) => {
-    if (screen === "profile" && tab !== "profile") {
-      setPreviousTab(tab);
-    }
     setSubScreen(screen);
     setOverlay(null);
     setActiveChatId(null);
@@ -699,32 +729,40 @@ function HomeHubApp() {
     showToast(`Switched to ${role} demo`);
   };
 
-  const navigateTab = (t: TabId) => {
-    if (t !== "profile") {
-      setPreviousTab(tab === "profile" ? previousTab : tab);
+  const navigateTab = (t: TabId | LegacyTabId) => {
+    if (t === "messages") {
+      openSubScreen("messages");
+      return;
     }
-    setTab(t);
+    if (t === "profile") {
+      openSubScreen("profile");
+      return;
+    }
+    if (t === "tenants") {
+      openSubScreen("tenants");
+      return;
+    }
+    if (t === "maintenance") {
+      openSubScreen("maintenance");
+      return;
+    }
+    if (t === "rent") {
+      setTab("payments");
+      setSubScreen(null);
+      setOverlay(null);
+      setActiveChatId(null);
+      return;
+    }
+    setTab(t as TabId);
     setSubScreen(null);
     setOverlay(null);
     setActiveChatId(null);
   };
 
-  const goBackFromProfile = () => {
-    if (subScreen === "profile") {
-      closeSubScreen();
-      return;
-    }
-    if (tab === "profile") {
-      navigateTab(previousTab === "profile" ? "home" : previousTab);
-      return;
-    }
-    closeSubScreen();
-    navigateTab("home");
-  };
+  const openMessages = () => openSubScreen("messages");
 
-  const goHomeFromProfile = () => {
+  const goBackFromProfile = () => {
     closeSubScreen();
-    navigateTab("home");
   };
 
   const openChat = (id: string) => {
@@ -1053,7 +1091,6 @@ function HomeHubApp() {
       onNavigate={openSubScreen}
       onNavigateMyFlat={() => navigateTab("myflat")}
       onBack={goBackFromProfile}
-      onGoHome={goHomeFromProfile}
     />
   );
 
@@ -1091,6 +1128,51 @@ function HomeHubApp() {
 
     if (subScreen === "profile") {
       return renderProfile();
+    }
+
+    if (subScreen === "messages") {
+      return (
+        <MessagesScreen
+          conversations={conversations}
+          onOpenChat={openChat}
+          onBack={closeSubScreen}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+        />
+      );
+    }
+
+    if (subScreen === "tenants" && demoRole === "landlord") {
+      return (
+        <TenantsScreen
+          properties={properties}
+          joinRequests={joinRequests}
+          tenants={landlordTenants}
+          onApprove={approveRequest}
+          onReject={rejectRequest}
+          onViewProperty={openPropertyDetail}
+          onMessageTenant={(conversationId) => openChat(conversationId)}
+          onRemoveTenant={removeTenant}
+          onAssignRoom={assignTenantRoom}
+          onBack={closeSubScreen}
+        />
+      );
+    }
+
+    if (subScreen === "maintenance" && demoRole === "landlord") {
+      return (
+        <LandlordMaintenanceScreen
+          requests={maintenance}
+          onUpdateStatus={updateMaintenanceStatus}
+          onAssignContractor={assignMaintenanceContractor}
+          onAddNote={addMaintenanceNote}
+          onMarkCompleted={completeMaintenance}
+          onMessageContractor={(conversationId) => openChat(conversationId)}
+          onBack={closeSubScreen}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+        />
+      );
     }
 
     if (subScreen === "property-search") {
@@ -1166,17 +1248,13 @@ function HomeHubApp() {
           return (
             <DashboardScreen
               role="flatmate"
-              rentDue={flatmateRentDue}
+              property={joinedProperty}
               nextRentDate={nextRentDate}
               nextRentAmount={nextRentAmount}
               rentDaysUntil={rentDaysUntil}
-              flatName={joinedProperty?.name ?? null}
-              alertLevel={alertLevel}
-              alertTitle={alertTitle}
               occupancyRate={0}
               maintenanceCount={maintenanceActive}
               unreadMessages={unreadMessages}
-              choresPending={choresPending}
               unreadNotifications={unreadNotifications}
               notifications={notifications}
               monthlyIncome={0}
@@ -1186,20 +1264,18 @@ function HomeHubApp() {
               refreshing={refreshing}
               onRefresh={handleRefresh}
               onMyFlat={() => navigateTab("myflat")}
-              onRent={() => navigateTab("rent")}
-              onMessages={() => navigateTab("messages")}
-              onEmergency={() => openSubScreen("emergency-hub")}
+              onMessages={openMessages}
+              onMaintenance={() => openSubScreen("maintenance")}
               onCalendar={() => openSubScreen("calendar")}
-              onAlerts={() => openSubScreen("alerts")}
-              onNotifications={() => openSubScreen("notifications")}
+              onPayRent={() => navigateTab("payments")}
+              onViewHistory={() => navigateTab("payments")}
               onProperties={() => {}}
               onTenants={() => {}}
-              onPayments={() => {}}
-              onMaintenance={() => openSubScreen("maintenance")}
-              onProfile={() => navigateTab("profile")}
+              onPayments={() => navigateTab("payments")}
+              onProfile={() => openSubScreen("profile")}
+              onNotifications={() => openSubScreen("notifications")}
               userName={user?.name}
               avatarUrl={user?.avatar_url}
-              backendOffline={propertiesOffline || messagesUsingCache}
             />
           );
         case "myflat":
@@ -1230,12 +1306,8 @@ function HomeHubApp() {
               onCancelRequest={cancelJoinRequest}
               onLeaveFlat={leaveFlat}
               onNavigateFeature={openSubScreen}
-              onNavigateTab={(tab) => {
-                if (tab === "rent") navigateTab("rent");
-                if (tab === "messages") navigateTab("messages");
-              }}
               onMessageFlatmates={() => {
-                navigateTab("messages");
+                openMessages();
                 const flatmateChat = conversations.find((c) => c.category === "flatmate");
                 if (flatmateChat) {
                   openChat(flatmateChat.id);
@@ -1249,7 +1321,7 @@ function HomeHubApp() {
               onRefresh={handleRefresh}
             />
           );
-        case "rent":
+        case "payments":
           return (
             <RentScreen
               sections={rentSections}
@@ -1260,18 +1332,34 @@ function HomeHubApp() {
               onRefresh={handleRefresh}
             />
           );
-        case "messages":
+        case "ella":
           return (
-            <MessagesScreen
-              conversations={conversations}
-              onOpenChat={openChat}
-              isTab
+            <EllaScreen
+              role="flatmate"
+              userName={user?.name}
+              propertyName={joinedProperty?.name}
+              nextRentDate={nextRentDate}
+              nextRentAmount={nextRentAmount}
+              rentDaysUntil={rentDaysUntil}
+              notificationCount={unreadNotifications}
+              maintenanceActive={maintenanceActive}
+              documentCount={documentCount}
+              onOpenMenu={() => navigateTab("more")}
+              onOpenSettings={() => openSubScreen("profile")}
+            />
+          );
+        case "more":
+          return (
+            <MoreScreen
+              role="flatmate"
+              onOpenFeature={openSubScreen}
+              onOpenMessages={openMessages}
+              onOpenProfile={() => openSubScreen("profile")}
+              unreadMessages={unreadMessages}
               refreshing={refreshing}
               onRefresh={handleRefresh}
             />
           );
-        case "profile":
-          return renderProfile();
         default:
           return null;
       }
@@ -1282,17 +1370,13 @@ function HomeHubApp() {
         return (
           <DashboardScreen
             role="landlord"
-            rentDue={0}
+            property={properties[0] ?? null}
             nextRentDate={null}
             nextRentAmount={0}
             rentDaysUntil={null}
-            flatName={null}
-            alertLevel={alertLevel}
-            alertTitle={alertTitle}
             occupancyRate={occupancyRate}
             maintenanceCount={maintenanceActive}
             unreadMessages={unreadMessages}
-            choresPending={0}
             unreadNotifications={landlordNotifications.filter((n) => !n.read).length}
             notifications={notifications}
             landlordNotifications={landlordNotifications}
@@ -1304,22 +1388,20 @@ function HomeHubApp() {
             outstandingRent={rentSections.current_due_total + rentSections.overdue_total}
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            onMyFlat={() => {}}
-            onRent={() => navigateTab("payments")}
-            onMessages={() => {}}
-            onEmergency={() => openSubScreen("emergency-hub")}
-            onCalendar={() => scheduleInspection()}
-            onAlerts={() => openSubScreen("alerts")}
-            onNotifications={() => openSubScreen("landlord-notifications")}
+            onMyFlat={() => navigateTab("properties")}
+            onMessages={openMessages}
+            onMaintenance={() => openSubScreen("maintenance")}
+            onCalendar={scheduleInspection}
+            onPayRent={() => navigateTab("payments")}
+            onViewHistory={() => navigateTab("payments")}
             onScheduleInspection={scheduleInspection}
             onProperties={() => navigateTab("properties")}
-            onTenants={() => navigateTab("tenants")}
+            onTenants={() => openSubScreen("tenants")}
             onPayments={() => navigateTab("payments")}
-            onMaintenance={() => navigateTab("maintenance")}
             onProfile={() => openSubScreen("profile")}
+            onNotifications={() => openSubScreen("landlord-notifications")}
             userName={user?.name}
             avatarUrl={user?.avatar_url}
-            backendOffline={propertiesOffline || messagesUsingCache}
           />
         );
       case "properties":
@@ -1350,20 +1432,6 @@ function HomeHubApp() {
             onPickPropertyPhoto={pickPropertyPhoto}
           />
         );
-      case "tenants":
-        return (
-          <TenantsScreen
-            properties={properties}
-            joinRequests={joinRequests}
-            tenants={landlordTenants}
-            onApprove={approveRequest}
-            onReject={rejectRequest}
-            onViewProperty={openPropertyDetail}
-            onMessageTenant={(conversationId) => openChat(conversationId)}
-            onRemoveTenant={removeTenant}
-            onAssignRoom={assignTenantRoom}
-          />
-        );
       case "payments":
         return (
           <LandlordPaymentsScreen
@@ -1382,15 +1450,42 @@ function HomeHubApp() {
             onMessageTenant={(conversationId) => openChat(conversationId)}
           />
         );
-      case "maintenance":
+      case "ella":
         return (
-          <LandlordMaintenanceScreen
-            requests={maintenance}
-            onUpdateStatus={updateMaintenanceStatus}
-            onAssignContractor={assignMaintenanceContractor}
-            onAddNote={addMaintenanceNote}
-            onMarkCompleted={completeMaintenance}
-            onMessageContractor={(conversationId) => openChat(conversationId)}
+          <EllaScreen
+            role="landlord"
+            userName={user?.name}
+            propertyName={properties[0]?.name}
+            nextRentDate={nextRentDate}
+            nextRentAmount={nextRentAmount}
+            rentDaysUntil={rentDaysUntil}
+            notificationCount={landlordNotifications.filter((n) => !n.read).length}
+            maintenanceActive={maintenanceActive}
+            documentCount={landlordDocuments.length}
+            monthlyIncome={monthlyIncome}
+            collectedThisMonth={collectedThisMonth}
+            outstandingRent={rentSections.current_due_total + rentSections.overdue_total}
+            propertyCount={properties.length}
+            pendingJoinRequests={pendingLandlordRequests.length}
+            occupancyRate={occupancyRate}
+            activeMaintenanceTitles={activeMaintenanceTitles}
+            overdueTenants={overdueTenants}
+            onOpenMenu={() => navigateTab("more")}
+            onOpenSettings={() => openSubScreen("profile")}
+          />
+        );
+      case "more":
+        return (
+          <MoreScreen
+            role="landlord"
+            onOpenFeature={openSubScreen}
+            onOpenMessages={openMessages}
+            onOpenProfile={() => openSubScreen("profile")}
+            onOpenTenants={() => openSubScreen("tenants")}
+            onOpenMaintenance={() => openSubScreen("maintenance")}
+            onOpenProperties={() => navigateTab("properties")}
+            onOpenNotifications={() => openSubScreen("landlord-notifications")}
+            unreadMessages={unreadMessages}
             refreshing={refreshing}
             onRefresh={handleRefresh}
           />
@@ -1400,8 +1495,7 @@ function HomeHubApp() {
     }
   };
 
-  const hideNav =
-    overlay !== null || (subScreen !== null && subScreen !== "profile");
+  const hideNav = overlay !== null || subScreen !== null;
 
   return (
     <View style={[styles.page, { backgroundColor: theme.bg }]}>

@@ -21,6 +21,7 @@ interface TenantsScreenProps {
   onMessageTenant: (conversationId: string) => void;
   onRemoveTenant: (id: string) => void;
   onAssignRoom: (id: string, room: string) => void;
+  onBack?: () => void;
 }
 
 export function TenantsScreen({
@@ -33,12 +34,13 @@ export function TenantsScreen({
   onMessageTenant,
   onRemoveTenant,
   onAssignRoom,
+  onBack,
 }: TenantsScreenProps) {
   const { theme } = useTheme();
   const pending = joinRequests.filter((r) => r.status === "pending");
 
   return (
-    <ScreenShell title="Tenants" subtitle="Join requests & flatmate management">
+    <ScreenShell title="Tenants" subtitle="Join requests & flatmate management" onBack={onBack}>
       <SectionHeader title={`Pending Requests (${pending.length})`} />
       {pending.length === 0 ? (
         <View style={[styles.empty, { backgroundColor: theme.card, borderColor: theme.border }]}>

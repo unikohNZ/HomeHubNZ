@@ -1,6 +1,8 @@
 export type SubScreen =
   | "about"
   | "profile"
+  | "messages"
+  | "tenants"
   | "notifications"
   | "alerts"
   | "emergency-hub"

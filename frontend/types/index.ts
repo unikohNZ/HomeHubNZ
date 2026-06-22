@@ -1,8 +1,11 @@
 export type DemoRole = "flatmate" | "landlord";
 
-export type FlatmateTabId = "home" | "myflat" | "rent" | "messages" | "profile";
-export type LandlordTabId = "home" | "properties" | "tenants" | "payments" | "maintenance";
+export type FlatmateTabId = "home" | "myflat" | "ella" | "payments" | "more";
+export type LandlordTabId = "home" | "properties" | "ella" | "payments" | "more";
 export type TabId = FlatmateTabId | LandlordTabId;
+
+/** @deprecated Use TabId — kept for internal navigation helpers */
+export type LegacyTabId = "rent" | "messages" | "profile" | "tenants" | "maintenance";
 
 export * from "./navigation";
 export * from "./property";

@@ -26,7 +26,6 @@ import { isMockMode } from "../src/utils/dataSource";
 const PROFILE_PHOTO_SIZE = 96;
 const SIGN_OUT_BG = "#7F1D1D";
 const SIGN_OUT_BORDER = "#EF4444";
-const TAB_BAR_CLEARANCE = 140;
 
 interface ProfileScreenProps {
   role: DemoRole;
@@ -42,7 +41,6 @@ interface ProfileScreenProps {
   onNavigate: (screen: SubScreen) => void;
   onNavigateMyFlat?: () => void;
   onBack: () => void;
-  onGoHome: () => void;
 }
 
 type DetailModalContent = {
@@ -62,7 +60,6 @@ export function ProfileScreen({
   onNavigate,
   onNavigateMyFlat,
   onBack,
-  onGoHome,
 }: ProfileScreenProps) {
   const { theme } = useTheme();
   const { user: authUser, logout, updateUser } = useAuth();
@@ -156,6 +153,17 @@ export function ProfileScreen({
       onPress: openEditProfile,
     },
     {
+      icon: "🔑",
+      label: "Change Password",
+      description: "Update your login password",
+      onPress: () =>
+        openDetail({
+          icon: "🔑",
+          title: "Change Password",
+          body: "To change your password, sign out and use Forgot Password on the login screen, or contact support@homehub.co.nz for assistance.",
+        }),
+    },
+    {
       icon: "📷",
       label: "Change Profile Photo",
       description: "Upload a new profile picture",
@@ -246,14 +254,9 @@ export function ProfileScreen({
   return (
     <>
       <ScreenShell
-        headerContent={
-          <ProfileNavHeader
-            onBack={onBack}
-            onGoHome={onGoHome}
-            theme={theme}
-          />
-        }
-        bottomPadding={TAB_BAR_CLEARANCE}
+        title="Profile"
+        subtitle="Account & settings"
+        onBack={onBack}
       >
         <View style={[styles.profile, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <View style={styles.avatarColumn}>
@@ -537,55 +540,6 @@ export function ProfileScreen({
   );
 }
 
-function ProfileNavHeader({
-  onBack,
-  onGoHome,
-  theme,
-}: {
-  onBack: () => void;
-  onGoHome: () => void;
-  theme: ReturnType<typeof useTheme>["theme"];
-}) {
-  return (
-    <View style={styles.navWrap}>
-      <View style={styles.navRow}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.navBtn,
-            { backgroundColor: theme.card, borderColor: theme.border },
-            pressed && styles.navBtnPressed,
-          ]}
-          onPress={onBack}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Text style={[styles.navBackText, { color: theme.primary }]}>← Back</Text>
-        </Pressable>
-
-        <View style={styles.navCenter}>
-          <Text style={[styles.navTitle, { color: theme.text }]}>Profile</Text>
-          <Text style={[styles.navSubtitle, { color: theme.textSecondary }]}>
-            Account & settings
-          </Text>
-        </View>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.navIconBtn,
-            { backgroundColor: theme.card, borderColor: theme.border },
-            pressed && styles.navBtnPressed,
-          ]}
-          onPress={onGoHome}
-          accessibilityRole="button"
-          accessibilityLabel="Go to home"
-        >
-          <Text style={styles.navHomeIcon}>🏠</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
 function SettingsSection({
   icon,
   title,
@@ -695,34 +649,6 @@ function DetailModal({
 }
 
 const styles = StyleSheet.create({
-  navWrap: { flex: 1, width: "100%" },
-  navRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  navBtn: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    minHeight: touchTarget,
-    justifyContent: "center",
-  },
-  navBackText: { fontSize: 14, fontWeight: "700" },
-  navCenter: { flex: 1, alignItems: "center" },
-  navTitle: { fontSize: 18, fontWeight: "800" },
-  navSubtitle: { fontSize: 12, marginTop: 2 },
-  navIconBtn: {
-    width: touchTarget,
-    height: touchTarget,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  navHomeIcon: { fontSize: 20 },
-  navBtnPressed: { opacity: 0.85 },
   profile: {
     flexDirection: "row",
     alignItems: "center",

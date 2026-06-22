@@ -12,6 +12,7 @@ interface MessagesScreenProps {
   conversations: Conversation[];
   onOpenChat: (id: string) => void;
   isTab?: boolean;
+  onBack?: () => void;
   refreshing?: boolean;
   onRefresh?: () => void;
 }
@@ -29,6 +30,7 @@ export function MessagesScreen({
   conversations,
   onOpenChat,
   isTab = false,
+  onBack,
   refreshing,
   onRefresh,
 }: MessagesScreenProps) {
@@ -44,6 +46,7 @@ export function MessagesScreen({
     <ScreenShell
       title="Messages"
       subtitle="Landlord, flatmates & contractors"
+      onBack={onBack}
       refreshing={refreshing}
       onRefresh={onRefresh}
     >

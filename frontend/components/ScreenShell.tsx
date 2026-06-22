@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { spacing, typography } from "../constants/design";
 
@@ -13,6 +13,7 @@ interface ScreenShellProps {
   onRefresh?: () => void;
   /** Extra bottom padding so content clears fixed tab bars (default 32). */
   bottomPadding?: number;
+  onBack?: () => void;
 }
 
 export function ScreenShell({
@@ -24,6 +25,7 @@ export function ScreenShell({
   refreshing,
   onRefresh,
   bottomPadding = spacing.xxxl,
+  onBack,
 }: ScreenShellProps) {
   const { theme } = useTheme();
 
@@ -46,6 +48,11 @@ export function ScreenShell({
         ) : undefined
       }
     >
+      {onBack ? (
+        <Pressable onPress={onBack} style={styles.back} hitSlop={12} accessibilityRole="button">
+          <Text style={[styles.backText, { color: theme.primary }]}>← Back</Text>
+        </Pressable>
+      ) : null}
       <View style={styles.header}>
         {headerContent ?? (
           <View style={styles.headerText}>
@@ -67,6 +74,8 @@ export function ScreenShell({
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { padding: spacing.xl, flexGrow: 1 },
+  back: { marginBottom: spacing.sm, minHeight: 44, justifyContent: "center" },
+  backText: { fontSize: 15, fontWeight: "700" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",

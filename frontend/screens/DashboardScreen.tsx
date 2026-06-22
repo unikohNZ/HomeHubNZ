@@ -1,36 +1,24 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { BrandHeader } from "../components/BrandHeader";
 import { BrandLogo } from "../components/BrandLogo";
 import { FlatmateDashboard, LandlordDashboard } from "../components/Dashboard";
 import { NotificationBell } from "../components/NotificationBell";
 import { ScreenShell } from "../components/ScreenShell";
 import { UserAvatar } from "../components/UserAvatar";
+import { spacing } from "../constants/design";
 import { useTheme } from "../context/ThemeContext";
 import { FLATMATE_USER, LANDLORD_USER } from "../data/mockUsers";
 import { AppNotification } from "../types/flat";
 import { DemoRole } from "../types";
-import { AlertLevel } from "../components/ui/AlertStatusBanner";
-import { spacing } from "../constants/design";
-
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good Morning";
-  if (hour < 17) return "Good Afternoon";
-  return "Good Evening";
-}
+import { Property } from "../types/property";
 
 interface DashboardScreenProps {
   role: DemoRole;
-  rentDue: number;
+  property: Property | null;
   nextRentDate: string | null;
   nextRentAmount: number;
   rentDaysUntil: number | null;
-  flatName: string | null;
-  alertLevel: AlertLevel;
-  alertTitle: string;
   occupancyRate: number;
   unreadMessages: number;
-  choresPending: number;
   unreadNotifications: number;
   notifications: AppNotification[];
   monthlyIncome: number;
@@ -41,20 +29,19 @@ interface DashboardScreenProps {
   refreshing?: boolean;
   onRefresh?: () => void;
   onMyFlat: () => void;
-  onRent: () => void;
   onMessages: () => void;
-  onEmergency: () => void;
+  onMaintenance: () => void;
   onCalendar: () => void;
-  onAlerts: () => void;
-  onNotifications: () => void;
+  onPayRent: () => void;
+  onViewHistory: () => void;
   onProperties: () => void;
   onTenants: () => void;
   onPayments: () => void;
-  onMaintenance: () => void;
   onProfile: () => void;
+  onNotifications: () => void;
   userName?: string;
   avatarUrl?: string | null;
-  backendOffline?: boolean;
+  avatarColor?: string;
   landlordNotifications?: AppNotification[];
   nextInspectionDate?: string;
   inspectionReminder?: boolean;
@@ -63,16 +50,12 @@ interface DashboardScreenProps {
 
 export function DashboardScreen({
   role,
-  rentDue,
+  property,
   nextRentDate,
   nextRentAmount,
   rentDaysUntil,
-  flatName,
-  alertLevel,
-  alertTitle,
   occupancyRate,
   unreadMessages,
-  choresPending,
   unreadNotifications,
   notifications,
   monthlyIncome,
@@ -83,20 +66,19 @@ export function DashboardScreen({
   refreshing,
   onRefresh,
   onMyFlat,
-  onRent,
   onMessages,
-  onEmergency,
+  onMaintenance,
   onCalendar,
-  onAlerts,
-  onNotifications,
+  onPayRent,
+  onViewHistory,
   onProperties,
   onTenants,
   onPayments,
-  onMaintenance,
   onProfile,
+  onNotifications,
   userName,
   avatarUrl,
-  backendOffline,
+  avatarColor,
   landlordNotifications = notifications,
   nextInspectionDate = "20 June 2026",
   inspectionReminder = true,
@@ -104,30 +86,30 @@ export function DashboardScreen({
 }: DashboardScreenProps) {
   const { theme } = useTheme();
   const fallbackUser = role === "landlord" ? LANDLORD_USER : FLATMATE_USER;
-  const user = { ...fallbackUser, name: userName ?? fallbackUser.name, avatar_url: avatarUrl };
-  const firstName = user.name.split(" ")[0];
+  const user = {
+    ...fallbackUser,
+    name: userName ?? fallbackUser.name,
+    avatar_url: avatarUrl,
+    avatar_color: avatarColor ?? fallbackUser.avatar_color,
+  };
 
   return (
     <ScreenShell
       headerContent={
-        role === "flatmate" ? (
-          <BrandHeader
-            variant="icon"
-            subtitle={`${getGreeting()}, ${firstName} 👋`}
-            badgeCount={unreadNotifications}
-          />
-        ) : (
+        role === "landlord" ? (
           <View style={styles.landlordHeader}>
             <BrandLogo variant="light" size="medium" />
             <View style={styles.landlordText}>
               <Text style={[styles.landlordTitle, { color: theme.text }]}>HomeHub NZ</Text>
               <Text style={[styles.landlordSub, { color: theme.textSecondary }]}>
-                Landlord property portal
+                Landlord portal
               </Text>
             </View>
           </View>
-        )
+        ) : undefined
       }
+      title={role === "flatmate" ? "Home" : undefined}
+      subtitle={role === "flatmate" ? "Your flat at a glance" : undefined}
       refreshing={refreshing}
       onRefresh={onRefresh}
       headerRight={
@@ -140,31 +122,27 @@ export function DashboardScreen({
               imageUri={user.avatar_url}
             />
           </Pressable>
-          {role === "flatmate" && (
-            <NotificationBell count={unreadNotifications} onPress={onNotifications} />
-          )}
+          <NotificationBell count={unreadNotifications} onPress={onNotifications} />
         </View>
       }
     >
       {role === "flatmate" ? (
         <FlatmateDashboard
-          rentDue={rentDue}
+          userName={user.name}
+          avatarUrl={user.avatar_url}
+          avatarColor={user.avatar_color}
+          property={property}
           nextRentDate={nextRentDate}
           nextRentAmount={nextRentAmount}
           rentDaysUntil={rentDaysUntil}
-          flatName={flatName}
-          alertLevel={alertLevel}
-          alertTitle={alertTitle}
           unreadMessages={unreadMessages}
-          choresPending={choresPending}
           notifications={notifications}
           onMyFlat={onMyFlat}
-          onRent={onRent}
           onMessages={onMessages}
-          onEmergency={onEmergency}
+          onMaintenance={onMaintenance}
           onCalendar={onCalendar}
-          onAlerts={onAlerts}
-          onNotifications={onNotifications}
+          onPayRent={onPayRent}
+          onViewHistory={onViewHistory}
         />
       ) : (
         <LandlordDashboard

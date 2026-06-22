@@ -7,7 +7,7 @@ import { spacing } from "../constants/design";
 export function BrandSplash() {
   return (
     <LinearGradient
-      colors={[BRAND_COLORS.secondary, BRAND_COLORS.primary]}
+      colors={[BRAND_COLORS.purple, BRAND_COLORS.primary]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.gradient}

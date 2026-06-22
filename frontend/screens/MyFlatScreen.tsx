@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { FeatureMenu } from "../components/FeatureMenu";
 import { JoinRequestCard } from "../components/JoinRequestCard";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { ScreenShell } from "../components/ScreenShell";
@@ -10,7 +9,7 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { SectionHeader } from "../components/ui/SectionHeader";
 import { SegmentTabs } from "../components/ui/SegmentTabs";
 import { useTheme } from "../context/ThemeContext";
-import { MOCK_FLATMATE_MEMBERS, MOCK_HOUSE_RULES, MOCK_MAINTENANCE, MOCK_SHARED_BILLS } from "../data/mockFlatData";
+import { MOCK_FLATMATE_MEMBERS, MOCK_HOUSE_RULES, MOCK_SHARED_BILLS } from "../data/mockFlatData";
 import { JoinRequest } from "../types/request";
 import { HouseRule } from "../types/flat";
 import { Property } from "../types/property";
@@ -19,14 +18,15 @@ import { FeatureTabId } from "../data/featureCategories";
 import { formatCurrency } from "../utils/format";
 import { radius, spacing } from "../constants/design";
 
-type FlatTab = "overview" | "flatmates" | "rules" | "bills" | "maintenance";
+type FlatTab = "overview" | "flatmates" | "rules" | "bills" | "gallery" | "documents";
 
 const FLAT_TABS: { id: FlatTab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "flatmates", label: "Flatmates" },
-  { id: "rules", label: "Rules" },
   { id: "bills", label: "Bills" },
-  { id: "maintenance", label: "Maintenance" },
+  { id: "rules", label: "Rules" },
+  { id: "gallery", label: "Gallery" },
+  { id: "documents", label: "Documents" },
 ];
 
 interface MyFlatScreenProps {
@@ -83,8 +83,6 @@ export function MyFlatScreen(props: MyFlatScreenProps) {
     return <BrowseFlats {...props} />;
   }
 
-  const openMaint = maintenance.filter((m) => m.status !== "completed");
-  const doneMaint = maintenance.filter((m) => m.status === "completed");
   const occupancy = `${joinedProperty.flatmate_count}/${joinedProperty.max_flatmates}`;
 
   return (
@@ -120,15 +118,22 @@ export function MyFlatScreen(props: MyFlatScreenProps) {
             <Pressable style={[styles.actionBtn, { backgroundColor: theme.primary }]} onPress={onMessageFlatmates}>
               <Text style={styles.actionBtnText}>💬 Message Flatmates</Text>
             </Pressable>
-            <Pressable style={[styles.leaveBtn, { borderColor: theme.danger }]} onPress={onLeaveFlat}>
-              <Text style={[styles.leaveText, { color: theme.danger }]}>Leave Flat</Text>
+            <Pressable
+              style={[styles.actionBtn, { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.border }]}
+              onPress={() => onNavigateFeature("documents")}
+            >
+              <Text style={[styles.actionBtnTextDark, { color: theme.text }]}>📄 Upload Document</Text>
             </Pressable>
           </View>
-          <SectionHeader title="Flat Features" />
-          <FeatureMenu
-            onNavigate={onNavigateFeature}
-            onNavigateTab={onNavigateTab}
-          />
+          <Pressable
+            style={[styles.reportBtn, { backgroundColor: theme.warningMuted, borderColor: theme.warning }]}
+            onPress={() => onNavigateFeature("maintenance")}
+          >
+            <Text style={[styles.reportText, { color: theme.warning }]}>🔧 Report Issue</Text>
+          </Pressable>
+          <Pressable style={[styles.leaveBtn, { borderColor: theme.danger, marginTop: 8 }]} onPress={onLeaveFlat}>
+            <Text style={[styles.leaveText, { color: theme.danger }]}>Leave Flat</Text>
+          </Pressable>
         </>
       )}
 
@@ -189,28 +194,32 @@ export function MyFlatScreen(props: MyFlatScreenProps) {
         </>
       )}
 
-      {tab === "maintenance" && (
+      {tab === "gallery" && (
         <>
-          <SectionHeader title="Open Requests" />
-          {openMaint.length === 0 ? (
-            <EmptyState icon="✅" title="No open requests" subtitle="Everything is running smoothly." />
-          ) : (
-            openMaint.map((m) => (
-              <View key={m.id} style={[styles.maintCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                <Text style={[styles.maintTitle, { color: theme.text }]}>{m.title}</Text>
-                <Text style={[styles.maintMeta, { color: theme.textMuted }]}>{m.contractor} · {m.status}</Text>
-              </View>
-            ))
-          )}
-          <SectionHeader title="Completed" />
-          {doneMaint.map((m) => (
-            <View key={m.id} style={[styles.maintCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <Text style={[styles.maintTitle, { color: theme.text }]}>{m.title}</Text>
-              <Badge label="Done" tone="success" />
-            </View>
-          ))}
-          <Pressable style={[styles.linkBtn, { backgroundColor: theme.primaryMuted }]} onPress={() => onNavigateFeature("maintenance")}>
-            <Text style={[styles.linkText, { color: theme.primary }]}>Submit request →</Text>
+          <EmptyState
+            icon="🖼️"
+            title="Property gallery"
+            subtitle="Photos of your flat and shared spaces."
+            actionLabel="Open gallery"
+            onAction={() => onNavigateFeature("gallery")}
+          />
+        </>
+      )}
+
+      {tab === "documents" && (
+        <>
+          <EmptyState
+            icon="📄"
+            title="Flat documents"
+            subtitle="Leases, receipts, and shared files."
+            actionLabel="View documents"
+            onAction={() => onNavigateFeature("documents")}
+          />
+          <Pressable
+            style={[styles.linkBtn, { backgroundColor: theme.primaryMuted }]}
+            onPress={() => onNavigateFeature("documents")}
+          >
+            <Text style={[styles.linkText, { color: theme.primary }]}>Upload document →</Text>
           </Pressable>
         </>
       )}
@@ -309,8 +318,6 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-const maintenance = MOCK_MAINTENANCE;
-
 const styles = StyleSheet.create({
   hero: { width: "100%", height: 180, borderRadius: radius.xl, marginBottom: spacing.md },
   address: { fontSize: 14, marginBottom: spacing.lg },
@@ -321,6 +328,15 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.lg },
   actionBtn: { flex: 1, borderRadius: radius.lg, paddingVertical: 14, alignItems: "center" },
   actionBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  actionBtnTextDark: { fontWeight: "700", fontSize: 14 },
+  reportBtn: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginBottom: spacing.sm,
+  },
+  reportText: { fontWeight: "700", fontSize: 14 },
   leaveBtn: { borderRadius: radius.lg, borderWidth: 1, paddingVertical: 14, paddingHorizontal: spacing.lg, justifyContent: "center" },
   leaveText: { fontWeight: "700", fontSize: 14 },
   flex: { flex: 1 },

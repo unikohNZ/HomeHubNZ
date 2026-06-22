@@ -24,6 +24,7 @@ interface LandlordMaintenanceScreenProps {
   onAddNote: (id: string, note: string) => void;
   onMarkCompleted: (id: string) => void;
   onMessageContractor: (conversationId: string) => void;
+  onBack?: () => void;
   refreshing?: boolean;
   onRefresh?: () => void;
 }
@@ -35,6 +36,7 @@ export function LandlordMaintenanceScreen({
   onAddNote,
   onMarkCompleted,
   onMessageContractor,
+  onBack,
   refreshing,
   onRefresh,
 }: LandlordMaintenanceScreenProps) {
@@ -47,6 +49,7 @@ export function LandlordMaintenanceScreen({
 
   return (
     <ScreenShell
+      onBack={onBack}
       title="Maintenance"
       subtitle="Manage repairs & contractors"
       refreshing={refreshing}
