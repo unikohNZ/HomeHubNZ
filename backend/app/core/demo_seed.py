@@ -189,10 +189,6 @@ async def _get_or_create_property(
     )
     prop = result.scalar_one_or_none()
     if prop:
-        for key, value in spec.items():
-            setattr(prop, key, value)
-        prop.rent_frequency = RentFrequency.WEEKLY
-        prop.is_published = True
         return prop
 
     prop = Property(

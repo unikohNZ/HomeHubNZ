@@ -1,4 +1,4 @@
-import json
+import logging
 from datetime import date
 from typing import List, Optional
 
@@ -18,6 +18,8 @@ from app.schemas.property import (
     PropertyResponse,
     PropertyUpdate,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class PropertyService:
@@ -88,7 +90,19 @@ class PropertyService:
         if prop.owner_id != user.id and user.role.name != "admin":
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
+        logger.info(
+            "Property %s before update: rent_amount=%s name=%s owner_id=%s",
+            property_id,
+            prop.rent_amount,
+            prop.name,
+            prop.owner_id,
+        )
+
         updates = data.model_dump(exclude_unset=True)
+        if not updates:
+            loaded = await self.property_repo.get_with_relations(property_id)
+            return self._to_response(loaded or prop)
+
         for field, value in updates.items():
             if field == "address":
                 prop.address_line1 = value
@@ -98,6 +112,13 @@ class PropertyService:
                 setattr(prop, field, value)
 
         prop = await self.property_repo.update(prop)
+        logger.info(
+            "Property %s updated by user %s — fields: %s, rent_amount=%s",
+            property_id,
+            user.id,
+            list(updates.keys()),
+            prop.rent_amount,
+        )
         loaded = await self.property_repo.get_with_relations(property_id)
         return self._to_response(loaded or prop)
 

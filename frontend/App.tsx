@@ -65,7 +65,8 @@ import {
   useMarkTenantPaid,
 } from "./hooks/useRentPaymentsData";
 import { useNotifications } from "./src/hooks/useNotifications";
-import { isMockMode } from "./src/utils/dataSource";
+import { isApiMode, isMockMode } from "./src/utils/dataSource";
+import { logPropertyDebug } from "./src/utils/propertyDebug";
 import { useHouseRules } from "./src/hooks/useProperties";
 import { queryClient, queryKeys } from "./src/lib/queryClient";
 import { ChatScreen } from "./screens/ChatScreen";
@@ -259,6 +260,12 @@ function HomeHubApp() {
     setOverlay(null);
     setActiveChatId(null);
   }, [user?.id, user?.role]);
+
+  useEffect(() => {
+    if (user?.id && isApiMode()) {
+      void queryClient.refetchQueries({ queryKey: queryKeys.properties.all });
+    }
+  }, [user?.id]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -518,7 +525,16 @@ function HomeHubApp() {
           showToast("Property not found");
           return;
         }
-        await updateProperty(editingId, form);
+        const result = await updateProperty(editingId, form);
+        logPropertyDebug("Save property result", {
+          source: result.source,
+          error: result.error,
+          weekly_rent: result.property?.weekly_rent,
+        });
+        if (result.error || result.source !== "api") {
+          showToast(result.error ?? "Could not save property — check backend connection");
+          return;
+        }
         if (propertyFormImage && !propertyFormImage.startsWith("http")) {
           await uploadPropertyPhoto({
             id: editingId,
@@ -583,16 +599,16 @@ function HomeHubApp() {
       description: property.description,
       rules: property.rules.join(", "),
     };
-    const result = await updateProperty(id, formFromProperty, newRent);
-    showToast(
-      result.error
-        ? delta > 0
-          ? "Rent increased locally"
-          : "Rent decreased locally"
-        : delta > 0
-          ? "Rent increased by $10"
-          : "Rent decreased by $10",
-    );
+    try {
+      const result = await updateProperty(id, formFromProperty, newRent);
+      if (result.error || result.source !== "api") {
+        showToast(result.error ?? "Could not update rent — check backend connection");
+        return;
+      }
+      showToast(delta > 0 ? "Rent increased by $10" : "Rent decreased by $10");
+    } catch {
+      showToast("Could not update rent — check backend connection");
+    }
   };
 
   const requestJoin = (propertyId: string) => {

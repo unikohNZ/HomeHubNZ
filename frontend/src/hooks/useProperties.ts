@@ -17,18 +17,53 @@ import {
 } from "../services/propertyService";
 import { isNumericPropertyId } from "../utils/propertyMapper";
 
+function applyPropertyUpdateToCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  id: string,
+  property: Property,
+) {
+  queryClient.setQueryData<PropertyListResult>(
+    queryKeys.properties.all,
+    (old) => {
+      const base = old ?? { data: [], source: "api" as const };
+      const exists = base.data.some((p) => p.id === id);
+      return {
+        ...base,
+        source: "api",
+        data: exists
+          ? base.data.map((p) => (p.id === id ? property : p))
+          : [...base.data, property],
+      };
+    },
+  );
+  queryClient.setQueryData(queryKeys.properties.detail(id), property);
+}
+
+async function invalidatePropertyQueries(
+  queryClient: ReturnType<typeof useQueryClient>,
+  id: string,
+) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: queryKeys.properties.all }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.properties.detail(id) }),
+    queryClient.invalidateQueries({ queryKey: ["properties", "my-flat"] }),
+    queryClient.refetchQueries({ queryKey: queryKeys.properties.all }),
+  ]);
+}
+
 export function useProperties() {
   const queryClient = useQueryClient();
 
   const propertiesQuery = useQuery({
     queryKey: queryKeys.properties.all,
     queryFn: async () => {
-      const cached = queryClient.getQueryData<PropertyListResult>(
+      const prev = queryClient.getQueryData<PropertyListResult>(
         queryKeys.properties.all,
       );
-      return propertyService.getProperties(cached?.data);
+      return propertyService.getProperties(prev?.data);
     },
-    placeholderData: (previous) => previous,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const myFlatQuery = useQuery({
@@ -57,9 +92,15 @@ export function useProperties() {
       existing: Property;
       weeklyRentOverride?: number;
     }) => propertyService.updateProperty(id, form, existing, weeklyRentOverride),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.properties.all });
-      queryClient.invalidateQueries({ queryKey: ["properties", "my-flat"] });
+    onSuccess: async (result, variables) => {
+      if (result.property && result.source === "api") {
+        applyPropertyUpdateToCache(
+          queryClient,
+          variables.id,
+          result.property,
+        );
+      }
+      await invalidatePropertyQueries(queryClient, variables.id);
     },
   });
 
@@ -147,6 +188,34 @@ export function useProperties() {
       );
     },
   };
+}
+
+export function useUpdateProperty() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      form,
+      existing,
+      weeklyRentOverride,
+    }: {
+      id: string;
+      form: PropertyFormData;
+      existing: Property;
+      weeklyRentOverride?: number;
+    }) => propertyService.updateProperty(id, form, existing, weeklyRentOverride),
+    onSuccess: async (result, variables) => {
+      if (result.property && result.source === "api") {
+        applyPropertyUpdateToCache(
+          queryClient,
+          variables.id,
+          result.property,
+        );
+      }
+      await invalidatePropertyQueries(queryClient, variables.id);
+    },
+  });
 }
 
 export function usePropertySearch(filters: PropertySearchFilters) {

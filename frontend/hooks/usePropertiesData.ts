@@ -37,4 +37,4 @@ export function usePropertiesData() {
   };
 }
 
-export { useProperties, usePropertySearch, useHouseRules } from "../src/hooks/useProperties";
+export { useProperties, usePropertySearch, useHouseRules, useUpdateProperty } from "../src/hooks/useProperties";

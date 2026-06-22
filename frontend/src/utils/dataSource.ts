@@ -1,7 +1,17 @@
 export type DataSource = "api" | "mock" | "cache";
 
+/**
+ * Mock mode is opt-in only (EXPO_PUBLIC_USE_MOCK=true).
+ * When USE_MOCK=false or EXPO_PUBLIC_API_URL is set, the app uses the real API.
+ */
 export function isMockMode(): boolean {
-  return process.env.EXPO_PUBLIC_USE_MOCK !== "false";
+  if (process.env.EXPO_PUBLIC_USE_MOCK === "true") return true;
+  if (process.env.EXPO_PUBLIC_USE_MOCK === "false") return false;
+  return !process.env.EXPO_PUBLIC_API_URL;
+}
+
+export function isApiMode(): boolean {
+  return !isMockMode();
 }
 
 export interface DataResult<T> {

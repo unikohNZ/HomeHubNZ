@@ -11,7 +11,8 @@ import {
 } from "../utils/propertyMapper";
 import api, { API_V1_URL, getApiErrorMessage } from "./api";
 import { getToken, saveToken } from "./tokenStorage";
-import { isMockMode } from "../utils/dataSource";
+import { isApiMode, isMockMode } from "../utils/dataSource";
+import { logPropertyDebug } from "../utils/propertyDebug";
 
 export type PropertyDataSource = "api" | "mock";
 
@@ -145,8 +146,16 @@ function mapList(
   data: ApiProperty[],
   existing?: Property[],
 ): Property[] {
-  const byId = new Map((existing ?? []).map((p) => [p.id, p]));
-  return data.map((item) => fromApiProperty(item, byId.get(String(item.id))));
+  const rulesById = new Map(
+    (existing ?? []).map((p) => [p.id, p.rules] as const),
+  );
+  return data.map((item) => {
+    const prevRules = rulesById.get(String(item.id));
+    return fromApiProperty(
+      item,
+      prevRules ? ({ rules: prevRules } as Property) : undefined,
+    );
+  });
 }
 
 export type NewPropertyInput = Omit<
@@ -158,6 +167,10 @@ export const propertyService = {
   async getProperties(existing?: Property[]): Promise<PropertyListResult> {
     try {
       await ensureAuth();
+      logPropertyDebug("GET /properties", {
+        useMock: isMockMode(),
+        apiMode: isApiMode(),
+      });
       const { data } = await api.get<ApiProperty[]>("/properties");
 
       if (!data?.length) {
@@ -166,8 +179,15 @@ export const propertyService = {
       }
 
       usingApi = true;
-      return { data: mapList(data, existing), source: "api" };
+      const mapped = mapList(data, existing);
+      logPropertyDebug("GET /properties response", mapped.map((p) => ({
+        id: p.id,
+        name: p.name,
+        weekly_rent: p.weekly_rent,
+      })));
+      return { data: mapped, source: "api" };
     } catch (error) {
+      logPropertyDebug("GET /properties failed", getApiErrorMessage(error));
       const cached = existing?.length ? existing : undefined;
       return withMockFallback(error, cached);
     }
@@ -192,6 +212,13 @@ export const propertyService = {
       usingApi = true;
       return { property: fromApiProperty(data, existing), source: "api" };
     } catch (error) {
+      if (!isMockMode()) {
+        return {
+          property: existing ?? null,
+          source: "api",
+          error: getApiErrorMessage(error),
+        };
+      }
       const fallback = MOCK_PROPERTIES.find((p) => p.id === id) ?? existing ?? null;
       return {
         property: fallback,
@@ -236,20 +263,51 @@ export const propertyService = {
     source: PropertyDataSource;
     error?: string;
   }> {
-    const local = mergeLocalProperty(existing, form, weeklyRentOverride);
+    const payload = toApiUpdatePayload(form, weeklyRentOverride);
 
-    if (isMockMode() || !isNumericPropertyId(id)) {
-      return { property: local, source: "mock" };
+    logPropertyDebug("Saving property", {
+      propertyId: id,
+      useMock: isMockMode(),
+      apiMode: isApiMode(),
+      endpoint: `PUT /properties/${id}`,
+      payload,
+      formData: form,
+    });
+
+    if (isMockMode()) {
+      logPropertyDebug("Mock mode — local merge only (no API call)");
+      return {
+        property: mergeLocalProperty(existing, form, weeklyRentOverride),
+        source: "mock",
+      };
+    }
+
+    if (!isNumericPropertyId(id)) {
+      const message = `Property id "${id}" is not a backend id — cannot persist edits`;
+      logPropertyDebug(message);
+      throw new Error(message);
     }
 
     try {
-      const { data } = await api.put<ApiProperty>(
-        `/properties/${id}`,
-        toApiUpdatePayload(form, weeklyRentOverride),
-      );
+      await ensureAuth();
+      const { data } = await api.put<ApiProperty>(`/properties/${id}`, payload);
       usingApi = true;
-      return { property: fromApiProperty(data, local), source: "api" };
+      const property = fromApiProperty(data, {
+        ...existing,
+        rules: form.rules
+          .split(",")
+          .map((r) => r.trim())
+          .filter(Boolean),
+      });
+      logPropertyDebug("Backend response", {
+        id: property.id,
+        weekly_rent: property.weekly_rent,
+        name: property.name,
+        raw: data,
+      });
+      return { property, source: "api" };
     } catch (error) {
+      logPropertyDebug("PUT /properties failed", getApiErrorMessage(error));
       throw error;
     }
   },

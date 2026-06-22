@@ -61,10 +61,9 @@ function formatLeaseDate(value: string | null | undefined): string | undefined {
 export function fromApiProperty(api: ApiProperty, existing?: Property): Property {
   const weeklyRent = toNumber(api.weekly_rent ?? api.rent_amount);
   const bond = toNumber(api.bond_amount);
-  const maxFlatmates = api.max_flatmates ?? existing?.max_flatmates ?? Math.max(2, api.bedrooms);
+  const maxFlatmates = api.max_flatmates ?? Math.max(2, api.bedrooms);
   const flatmateCount =
     api.flatmate_count ??
-    existing?.flatmate_count ??
     Math.max(0, maxFlatmates - (api.available_rooms ?? maxFlatmates - 1));
 
   return {
@@ -78,7 +77,7 @@ export function fromApiProperty(api: ApiProperty, existing?: Property): Property
     bathrooms: api.bathrooms,
     weekly_rent: weeklyRent,
     bond,
-    available_rooms: api.available_rooms ?? existing?.available_rooms ?? Math.max(1, api.bedrooms - 1),
+    available_rooms: api.available_rooms ?? Math.max(1, api.bedrooms - 1),
     max_flatmates: maxFlatmates,
     flatmate_count: flatmateCount,
     description: api.description?.trim() || "New Zealand rental property.",
@@ -112,23 +111,27 @@ export function toApiUpdatePayload(
   weeklyRentOverride?: number,
 ) {
   const weeklyRent =
-    weeklyRentOverride ?? (parseFloat(form.weekly_rent) || undefined);
+    weeklyRentOverride ?? parseFloat(form.weekly_rent);
+  const bond = parseFloat(form.bond);
 
   return {
-    name: form.name.trim() || undefined,
-    address: form.address.trim() || undefined,
-    suburb: form.suburb.trim() || undefined,
-    city: form.city.trim() || undefined,
-    property_type: UI_TO_API_TYPE[form.property_type] ?? undefined,
-    bedrooms: parseInt(form.bedrooms, 10) || undefined,
-    bathrooms: parseInt(form.bathrooms, 10) || undefined,
-    weekly_rent: weeklyRent,
-    bond_amount: parseFloat(form.bond) || undefined,
-    available_rooms: parseInt(form.available_rooms, 10) || undefined,
-    max_flatmates: parseInt(form.max_flatmates, 10) || undefined,
-    description: form.description.trim() || undefined,
+    name: form.name.trim(),
+    address: form.address.trim(),
+    suburb: form.suburb.trim(),
+    city: form.city.trim(),
+    property_type: UI_TO_API_TYPE[form.property_type] ?? "apartment",
+    bedrooms: parseInt(form.bedrooms, 10),
+    bathrooms: parseInt(form.bathrooms, 10),
+    weekly_rent: Number.isFinite(weeklyRent) ? weeklyRent : undefined,
+    bond_amount: Number.isFinite(bond) ? bond : undefined,
+    available_rooms: parseInt(form.available_rooms, 10),
+    max_flatmates: parseInt(form.max_flatmates, 10),
+    description: form.description.trim(),
   };
 }
+
+/** Snake_case payload for PUT /properties/{id} */
+export const toPropertyUpdatePayload = toApiUpdatePayload;
 
 export function isNumericPropertyId(id: string): boolean {
   return /^\d+$/.test(id);

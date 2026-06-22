@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const session = await authStorage.getSession();
       if (!active) return;
-      if (session) {
+      if (session && isMockMode()) {
         setUser(session.user);
         await saveToken(session.token, session.token);
       }
@@ -124,7 +124,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await authStorage.setRememberMe(false);
       }
       setUser(mapped);
-      await queryClient.invalidateQueries();
+      queryClient.clear();
+      await queryClient.invalidateQueries({ queryKey: ["properties"] });
       return;
     }
 

@@ -1,5 +1,7 @@
 from typing import List, Optional
 
+import logging
+
 from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +21,7 @@ from app.services.property_service import PropertyService
 from app.services.supabase_storage_service import storage_service
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("", response_model=List[PropertyResponse])
@@ -92,8 +95,21 @@ async def update_property(
     current_user: User = Depends(require_permissions(Permission.PROPERTY_UPDATE)),
     db: AsyncSession = Depends(get_db),
 ):
+    logger.info(
+        "PUT /properties/%s user=%s payload=%s",
+        property_id,
+        current_user.id,
+        data.model_dump(exclude_unset=True),
+    )
     service = PropertyService(db)
-    return await service.update(property_id, data, current_user)
+    response = await service.update(property_id, data, current_user)
+    logger.info(
+        "PUT /properties/%s saved weekly_rent=%s name=%s",
+        property_id,
+        response.weekly_rent,
+        response.name,
+    )
+    return response
 
 
 @router.delete("/{property_id}", response_model=MessageResponse)
