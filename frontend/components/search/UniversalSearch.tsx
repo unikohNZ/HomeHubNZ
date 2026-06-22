@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { radius, spacing } from "../constants/design";
-import { useTheme } from "../context/ThemeContext";
-import { DemoRole, SubScreen, TabId } from "../types";
+import { radius, spacing } from "../../constants/design";
+import { useTheme } from "../../context/ThemeContext";
+import { DemoRole, SubScreen, TabId } from "../../types";
 
 export interface SearchTarget {
   id: string;

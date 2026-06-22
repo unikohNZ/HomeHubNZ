@@ -39,7 +39,7 @@ export function PropertySearchScreen({
 
   const filters = useMemo(
     () => ({
-      location: locationLabel ?? city.trim() || undefined,
+      location: locationLabel ?? (city.trim() || undefined),
       lat: location?.preferred_latitude ?? undefined,
       lng: location?.preferred_longitude ?? undefined,
       radius_km: location?.preferred_latitude ? radiusKm : undefined,
