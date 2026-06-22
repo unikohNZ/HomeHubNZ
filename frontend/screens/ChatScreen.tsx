@@ -22,6 +22,8 @@ interface ChatScreenProps {
   onBack: () => void;
   onSend: (content: string) => void;
   onSendImage: (imageUri: string) => void;
+  onTypingStart?: () => void;
+  onTypingStop?: () => void;
 }
 
 export function ChatScreen({
@@ -30,6 +32,8 @@ export function ChatScreen({
   onBack,
   onSend,
   onSendImage,
+  onTypingStart,
+  onTypingStop,
 }: ChatScreenProps) {
   const { theme } = useTheme();
   const [draft, setDraft] = useState("");
@@ -49,9 +53,19 @@ export function ChatScreen({
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
+  const handleDraftChange = (text: string) => {
+    setDraft(text);
+    if (text.trim()) {
+      onTypingStart?.();
+    } else {
+      onTypingStop?.();
+    }
+  };
+
   const handleSend = () => {
     const text = draft.trim();
     if (!text) return;
+    onTypingStop?.();
     onSend(text);
     setDraft("");
     scrollToEnd();
@@ -143,7 +157,8 @@ export function ChatScreen({
           placeholder="Type a message..."
           placeholderTextColor={theme.textMuted}
           value={draft}
-          onChangeText={setDraft}
+          onChangeText={handleDraftChange}
+          onBlur={() => onTypingStop?.()}
           onSubmitEditing={handleSend}
           returnKeyType="send"
         />

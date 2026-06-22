@@ -77,6 +77,7 @@ export function useUpdateProfile() {
     mutationFn: profileService.updateProfile,
     onSuccess: (data) => {
       client.setQueryData(queryKeys.profile.me, data);
+      client.invalidateQueries({ queryKey: queryKeys.profile.me });
       client.invalidateQueries({ queryKey: queryKeys.auth.me });
     },
   });

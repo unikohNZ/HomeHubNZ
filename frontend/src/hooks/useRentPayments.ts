@@ -52,3 +52,20 @@ export function useCreateRentPayment() {
     },
   });
 }
+
+export function useUploadRentReceipt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      paymentId,
+      file,
+    }: {
+      paymentId: string;
+      file: { uri: string; name: string; type: string };
+    }) => rentPaymentService.uploadReceipt(paymentId, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.rent.payments });
+      queryClient.invalidateQueries({ queryKey: queryKeys.rentPayments });
+    },
+  });
+}

@@ -215,6 +215,9 @@ export const propertyService = {
       usingApi = true;
       return { property: fromApiProperty(data), source: "api" };
     } catch (error) {
+      if (!isMockMode()) {
+        throw error;
+      }
       return {
         property: buildLocalProperty(form),
         source: "mock",
@@ -235,7 +238,7 @@ export const propertyService = {
   }> {
     const local = mergeLocalProperty(existing, form, weeklyRentOverride);
 
-    if (!usingApi || !isNumericPropertyId(id)) {
+    if (isMockMode() || !isNumericPropertyId(id)) {
       return { property: local, source: "mock" };
     }
 
@@ -244,9 +247,10 @@ export const propertyService = {
         `/properties/${id}`,
         toApiUpdatePayload(form, weeklyRentOverride),
       );
+      usingApi = true;
       return { property: fromApiProperty(data, local), source: "api" };
     } catch (error) {
-      return { property: local, source: "mock", error: getApiErrorMessage(error) };
+      throw error;
     }
   },
 
@@ -254,10 +258,11 @@ export const propertyService = {
     id: string,
     file: { uri: string; name: string; type: string },
   ): Promise<{ imageUrl: string; source: PropertyDataSource; error?: string }> {
-    if (!usingApi || !isNumericPropertyId(id)) {
+    if (isMockMode() || !isNumericPropertyId(id)) {
       return { imageUrl: file.uri, source: "mock" };
     }
     try {
+      await ensureAuth();
       const form = new FormData();
       form.append("file", {
         uri: file.uri,
@@ -267,13 +272,14 @@ export const propertyService = {
       const { data } = await api.post<ApiProperty>(`/properties/${id}/photo`, form, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+      usingApi = true;
       const urls = data.image_urls ?? [];
       return {
         imageUrl: urls[0] ?? file.uri,
         source: "api",
       };
     } catch (error) {
-      return { imageUrl: file.uri, source: "mock", error: getApiErrorMessage(error) };
+      throw error;
     }
   },
 
@@ -282,15 +288,17 @@ export const propertyService = {
     source: PropertyDataSource;
     error?: string;
   }> {
-    if (!usingApi || !isNumericPropertyId(id)) {
+    if (isMockMode() || !isNumericPropertyId(id)) {
       return { ok: true, source: "mock" };
     }
 
     try {
+      await ensureAuth();
       await api.delete(`/properties/${id}`);
+      usingApi = true;
       return { ok: true, source: "api" };
     } catch (error) {
-      return { ok: false, source: "mock", error: getApiErrorMessage(error) };
+      throw error;
     }
   },
 
@@ -307,27 +315,31 @@ export const propertyService = {
       return { data: mapList(data ?? [], existing), source: "api" };
     } catch (error) {
       const q = (filters.query ?? filters.city ?? "").toLowerCase();
-      const filtered = MOCK_PROPERTIES.filter((p) => {
-        const cityMatch = !filters.city || p.city.toLowerCase().includes(filters.city.toLowerCase());
-        const rentMatch =
-          (filters.min_rent === undefined || p.weekly_rent >= filters.min_rent) &&
-          (filters.max_rent === undefined || p.weekly_rent <= filters.max_rent);
-        const roomsMatch =
-          filters.min_rooms === undefined || p.available_rooms >= filters.min_rooms;
-        const bedsMatch =
-          filters.min_bedrooms === undefined || p.bedrooms >= filters.min_bedrooms;
-        const textMatch =
-          !q ||
-          p.name.toLowerCase().includes(q) ||
-          p.city.toLowerCase().includes(q) ||
-          p.suburb.toLowerCase().includes(q);
-        return cityMatch && rentMatch && roomsMatch && bedsMatch && textMatch;
-      });
-      return {
-        data: filtered,
-        source: "mock",
-        error: getApiErrorMessage(error),
-      };
+      if (isMockMode()) {
+        const filtered = MOCK_PROPERTIES.filter((p) => {
+          const cityMatch = !filters.city || p.city.toLowerCase().includes(filters.city.toLowerCase());
+          const rentMatch =
+            (filters.min_rent === undefined || p.weekly_rent >= filters.min_rent) &&
+            (filters.max_rent === undefined || p.weekly_rent <= filters.max_rent);
+          const roomsMatch =
+            filters.min_rooms === undefined || p.available_rooms >= filters.min_rooms;
+          const bedsMatch =
+            filters.min_bedrooms === undefined || p.bedrooms >= filters.min_bedrooms;
+          const textMatch =
+            !q ||
+            p.name.toLowerCase().includes(q) ||
+            p.city.toLowerCase().includes(q) ||
+            p.suburb.toLowerCase().includes(q);
+          return cityMatch && rentMatch && roomsMatch && bedsMatch && textMatch;
+        });
+        return {
+          data: filtered,
+          source: "mock",
+          error: getApiErrorMessage(error),
+        };
+      }
+      const cached = existing?.length ? existing : undefined;
+      return withMockFallback(error, cached);
     }
   },
 

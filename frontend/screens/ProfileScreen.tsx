@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { OfflineBanner } from "../components/OfflineBanner";
@@ -19,7 +20,7 @@ import { DemoRole, SubScreen } from "../types";
 import { radius, spacing, touchTarget } from "../constants/design";
 import { pickProfileImage } from "../utils/imagePicker";
 import { initials } from "../utils/format";
-import { useProfile, useUploadAvatar } from "../src/services/profileService";
+import { useProfile, useUpdateProfile, useUploadAvatar } from "../src/services/profileService";
 import { isMockMode } from "../src/utils/dataSource";
 
 const PROFILE_PHOTO_SIZE = 96;
@@ -68,7 +69,12 @@ export function ProfileScreen({
   const user = authUser ?? (role === "landlord" ? LANDLORD_USER : FLATMATE_USER);
   const profileQuery = useProfile(!isMockMode());
   const uploadAvatar = useUploadAvatar();
+  const updateProfile = useUpdateProfile();
   const [showSignOutModal, setShowSignOutModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
   const [detailModal, setDetailModal] = useState<DetailModalContent | null>(null);
   const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
   const [pickingPhoto, setPickingPhoto] = useState(false);
@@ -102,6 +108,41 @@ export function ProfileScreen({
     }
   };
 
+  const openEditProfile = () => {
+    const profile = profileQuery.data;
+    const nameParts = user.name.trim().split(/\s+/);
+    setEditFirstName(profile?.first_name ?? nameParts[0] ?? "");
+    setEditLastName(profile?.last_name ?? nameParts.slice(1).join(" ") ?? "");
+    setEditPhone(profile?.phone ?? user.phone ?? "");
+    setShowEditModal(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editFirstName.trim()) return;
+    if (isMockMode()) {
+      updateUser({
+        name: `${editFirstName.trim()} ${editLastName.trim()}`.trim(),
+        phone: editPhone.trim() || undefined,
+      });
+      setShowEditModal(false);
+      return;
+    }
+    try {
+      const updated = await updateProfile.mutateAsync({
+        first_name: editFirstName.trim(),
+        last_name: editLastName.trim(),
+        phone: editPhone.trim() || undefined,
+      });
+      updateUser({
+        name: `${updated.first_name} ${updated.last_name}`.trim(),
+        phone: updated.phone ?? undefined,
+      });
+      setShowEditModal(false);
+    } catch {
+      // keep modal open
+    }
+  };
+
   const confirmSignOut = async () => {
     setShowSignOutModal(false);
     await logout();
@@ -112,12 +153,7 @@ export function ProfileScreen({
       icon: "✏️",
       label: "Edit Profile",
       description: "Update your name and contact details",
-      onPress: () =>
-        openDetail({
-          icon: "✏️",
-          title: "Edit Profile",
-          body: `${user.name}\n${user.email}\n\nFull profile editing is coming soon. Your details are saved to your account when connected to the backend.`,
-        }),
+      onPress: openEditProfile,
     },
     {
       icon: "📷",
@@ -263,6 +299,11 @@ export function ProfileScreen({
           <View style={styles.profileInfo}>
             <Text style={[styles.name, { color: theme.text }]}>{user.name}</Text>
             <Text style={[styles.email, { color: theme.textSecondary }]}>{user.email}</Text>
+            {(user.phone ?? profileQuery.data?.phone) ? (
+              <Text style={[styles.email, { color: theme.textSecondary }]}>
+                {user.phone ?? profileQuery.data?.phone}
+              </Text>
+            ) : null}
             <Badge
               label={role === "landlord" ? "Landlord" : "Flatmate"}
               tone="primary"
@@ -401,6 +442,65 @@ export function ProfileScreen({
         theme={theme}
         onClose={() => setDetailModal(null)}
       />
+
+      <Modal
+        visible={showEditModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowEditModal(false)}
+            accessibilityLabel="Dismiss edit profile dialog"
+          />
+          <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Edit Profile</Text>
+            <TextInput
+              style={[styles.editInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.bg }]}
+              placeholder="First name"
+              placeholderTextColor={theme.textMuted}
+              value={editFirstName}
+              onChangeText={setEditFirstName}
+            />
+            <TextInput
+              style={[styles.editInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.bg }]}
+              placeholder="Last name"
+              placeholderTextColor={theme.textMuted}
+              value={editLastName}
+              onChangeText={setEditLastName}
+            />
+            <TextInput
+              style={[styles.editInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.bg }]}
+              placeholder="Phone"
+              placeholderTextColor={theme.textMuted}
+              value={editPhone}
+              onChangeText={setEditPhone}
+              keyboardType="phone-pad"
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalBtn, { borderColor: theme.border }]}
+                onPress={() => setShowEditModal(false)}
+              >
+                <Text style={{ color: theme.textSecondary }}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalBtn, { backgroundColor: theme.primary, borderColor: theme.primary }]}
+                onPress={handleSaveProfile}
+                disabled={updateProfile.isPending}
+              >
+                {updateProfile.isPending ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={{ color: "#fff", fontWeight: "600" }}>Save</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={showSignOutModal}
@@ -758,4 +858,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   detailCloseText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  editInput: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    fontSize: 15,
+    marginBottom: spacing.md,
+  },
+  modalBtn: {
+    flex: 1,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    paddingVertical: 14,
+    alignItems: "center",
+    minHeight: touchTarget,
+    justifyContent: "center",
+  },
 });

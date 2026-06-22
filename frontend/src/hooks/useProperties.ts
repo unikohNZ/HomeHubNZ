@@ -39,18 +39,9 @@ export function useProperties() {
 
   const createMutation = useMutation({
     mutationFn: (form: PropertyFormData) => propertyService.createProperty(form),
-    onSuccess: (result) => {
-      queryClient.setQueryData<PropertyListResult>(
-        queryKeys.properties.all,
-        (old) => {
-          const base = old ?? { data: [], source: result.source };
-          return {
-            ...base,
-            data: [...base.data, result.property],
-            source: result.source,
-          };
-        },
-      );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.properties.all });
+      queryClient.invalidateQueries({ queryKey: ["properties", "my-flat"] });
     },
   });
 
@@ -66,38 +57,30 @@ export function useProperties() {
       existing: Property;
       weeklyRentOverride?: number;
     }) => propertyService.updateProperty(id, form, existing, weeklyRentOverride),
-    onSuccess: (result, variables) => {
-      queryClient.setQueryData<PropertyListResult>(
-        queryKeys.properties.all,
-        (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            data: old.data.map((p) =>
-              p.id === variables.id ? result.property : p,
-            ),
-            source: result.source,
-          };
-        },
-      );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.properties.all });
+      queryClient.invalidateQueries({ queryKey: ["properties", "my-flat"] });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => propertyService.deleteProperty(id),
-    onSuccess: (result, id) => {
-      if (result.ok) {
-        queryClient.setQueryData<PropertyListResult>(
-          queryKeys.properties.all,
-          (old) => {
-            if (!old) return old;
-            return {
-              ...old,
-              data: old.data.filter((p) => p.id !== id),
-            };
-          },
-        );
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.properties.all });
+      queryClient.invalidateQueries({ queryKey: ["properties", "my-flat"] });
+    },
+  });
+
+  const uploadPhotoMutation = useMutation({
+    mutationFn: ({
+      id,
+      file,
+    }: {
+      id: string;
+      file: { uri: string; name: string; type: string };
+    }) => propertyService.uploadPropertyPhoto(id, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.properties.all });
     },
   });
 
@@ -117,7 +100,8 @@ export function useProperties() {
     saving:
       createMutation.isPending ||
       updateMutation.isPending ||
-      deleteMutation.isPending,
+      deleteMutation.isPending ||
+      uploadPhotoMutation.isPending,
     error:
       listResult?.error ??
       (propertiesQuery.error instanceof Error
@@ -150,6 +134,7 @@ export function useProperties() {
       });
     },
     deleteProperty: deleteMutation.mutateAsync,
+    uploadPropertyPhoto: uploadPhotoMutation.mutateAsync,
     setProperties: (updater: Property[] | ((prev: Property[]) => Property[])) => {
       queryClient.setQueryData<PropertyListResult>(
         queryKeys.properties.all,

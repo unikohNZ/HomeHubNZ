@@ -47,7 +47,7 @@ import {
   MOCK_LANDLORD_NOTIFICATIONS,
   MOCK_LANDLORD_TENANTS,
 } from "./data/mockLandlord";
-import { INITIAL_JOIN_REQUESTS, MOCK_CHAT_MESSAGES, MOCK_CONVERSATIONS } from "./data/mockMessages";
+import { INITIAL_JOIN_REQUESTS, MOCK_CONVERSATIONS } from "./data/mockMessages";
 import { MOCK_TENANT_PAYMENTS } from "./data/mockTenantPayments";
 import { MOCK_RENT_PAYMENTS } from "./data/mockRent";
 import { FLATMATE_USER } from "./data/mockUsers";
@@ -58,6 +58,7 @@ import {
   useSendMessage,
   useSendImageMessage,
 } from "./hooks/useMessagesData";
+import { useRealtimeChat } from "./src/hooks/useRealtimeChat";
 import {
   useRentPayments,
   useTenantPayments,
@@ -74,6 +75,7 @@ import { MessagesScreen } from "./screens/MessagesScreen";
 import { MyFlatScreen } from "./screens/MyFlatScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { PropertiesScreen } from "./screens/PropertiesScreen";
+import { PropertySearchScreen } from "./screens/PropertySearchScreen";
 import { PropertyDetailScreen } from "./screens/PropertyDetailScreen";
 import { LandlordPaymentsScreen } from "./screens/LandlordPaymentsScreen";
 import { LandlordMaintenanceScreen } from "./screens/LandlordMaintenanceScreen";
@@ -156,6 +158,7 @@ function HomeHubApp() {
     createProperty,
     updateProperty,
     deleteProperty: removeProperty,
+    uploadPropertyPhoto,
   } = usePropertiesData();
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([
     DEMO_APPROVED_JOIN,
@@ -193,6 +196,23 @@ function HomeHubApp() {
     currentUserId && !Number.isNaN(currentUserId) ? currentUserId : undefined,
   );
   const markPaidMutation = useMarkTenantPaid();
+
+  const {
+    typingUsers: chatTypingUsers,
+    onlineUserIds: chatOnlineUserIds,
+    startTyping: chatStartTyping,
+    stopTyping: chatStopTyping,
+  } = useRealtimeChat({
+    roomId: activeChatId && !isMockMode() ? activeChatId : null,
+    currentUserId: currentUserId && !Number.isNaN(currentUserId) ? currentUserId : undefined,
+    onNewMessage: () => {
+      if (activeChatId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.messages.room(Number(activeChatId) || activeChatId),
+        });
+      }
+    },
+  });
 
   const [houseRules, setHouseRules] = useState(MOCK_HOUSE_RULES);
   const [chores, setChores] = useState(MOCK_CHORES);
@@ -244,10 +264,12 @@ function HomeHubApp() {
     setRefreshing(true);
     await Promise.all([
       reloadProperties(),
+      queryClient.invalidateQueries({ queryKey: queryKeys.properties.all }),
       queryClient.invalidateQueries({ queryKey: queryKeys.messages.rooms }),
       queryClient.invalidateQueries({ queryKey: queryKeys.rent.payments }),
       queryClient.invalidateQueries({ queryKey: queryKeys.rentPayments }),
       queryClient.invalidateQueries({ queryKey: queryKeys.profile.me }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.auth.me }),
       refetchNotifications(),
     ]);
     setRefreshing(false);
@@ -357,9 +379,9 @@ function HomeHubApp() {
   };
 
   const pickPropertyPhoto = async () => {
-    const picked = await pickProfileImage();
-    if (picked?.uri) {
-      setPropertyFormImage(picked.uri);
+    const uri = await pickProfileImage();
+    if (uri) {
+      setPropertyFormImage(uri);
       showToast("Property photo selected");
     }
   };
@@ -416,15 +438,8 @@ function HomeHubApp() {
 
   const markTenantPaid = async (id: string) => {
     try {
-      await markPaidMutation.mutateAsync({ id, paymentDate: "2026-06-13" });
-      const payment = tenantPayments.find((p) => p.id === id);
-      if (payment) {
-        setLandlordTenants((tenants) =>
-          tenants.map((t) =>
-            t.id === payment.tenant_id ? { ...t, rent_status: "paid" as const } : t,
-          ),
-        );
-      }
+      const paymentDate = new Date().toISOString().slice(0, 10);
+      await markPaidMutation.mutateAsync({ id, paymentDate });
       showToast("Rent marked as paid");
     } catch {
       showToast("Could not record payment");
@@ -496,58 +511,56 @@ function HomeHubApp() {
       showToast("Name, address and rent are required");
       return;
     }
-    if (editingId) {
-      const existing = properties.find((p) => p.id === editingId);
-      if (!existing) {
-        showToast("Property not found");
-        return;
+    try {
+      if (editingId) {
+        const existing = properties.find((p) => p.id === editingId);
+        if (!existing) {
+          showToast("Property not found");
+          return;
+        }
+        await updateProperty(editingId, form);
+        if (propertyFormImage && !propertyFormImage.startsWith("http")) {
+          await uploadPropertyPhoto({
+            id: editingId,
+            file: {
+              uri: propertyFormImage,
+              name: "property.jpg",
+              type: "image/jpeg",
+            },
+          });
+        }
+        showToast("Property updated");
+      } else {
+        const result = await createProperty(form);
+        if (propertyFormImage && result.property?.id) {
+          await uploadPropertyPhoto({
+            id: result.property.id,
+            file: {
+              uri: propertyFormImage,
+              name: "property.jpg",
+              type: "image/jpeg",
+            },
+          });
+        }
+        showToast("Property created");
       }
-      const result = await updateProperty(editingId, form);
-      if (propertyFormImage) {
-        setProperties((prev) =>
-          prev.map((p) =>
-            p.id === editingId ? { ...p, image_url: propertyFormImage } : p,
-          ),
-        );
-      }
-      showToast(
-        result.error
-          ? "Saved locally (API unavailable)"
-          : result.source === "api"
-            ? "Property updated via API"
-            : "Property updated",
-      );
-    } else {
-      const result = await createProperty(form);
-      if (propertyFormImage && result.property) {
-        setProperties((prev) =>
-          prev.map((p) =>
-            p.id === result.property.id
-              ? { ...p, image_url: propertyFormImage }
-              : p,
-          ),
-        );
-      }
-      showToast(
-        result.error
-          ? "Saved locally (API unavailable)"
-          : result.source === "api"
-            ? "Property created via API"
-            : "Property created",
-      );
+      resetForm();
+    } catch {
+      showToast("Could not save property — check backend connection");
     }
-    resetForm();
   };
 
   const deleteProperty = async (id: string) => {
-    const result = await removeProperty(id);
-    if (result.ok) {
-      setJoinRequests((prev) => prev.filter((r) => r.property_id !== id));
-      showToast(
-        result.error ? "Removed locally (API unavailable)" : "Property deleted",
-      );
-    } else {
-      showToast(result.error ?? "Could not delete property");
+    try {
+      const result = await removeProperty(id);
+      if (result.ok) {
+        setJoinRequests((prev) => prev.filter((r) => r.property_id !== id));
+        showToast("Property deleted");
+      } else {
+        showToast(result.error ?? "Could not delete property");
+      }
+    } catch {
+      showToast("Could not delete property");
     }
   };
 
@@ -1033,15 +1046,20 @@ function HomeHubApp() {
   }
 
   const activeConversation = conversations.find((c) => c.id === activeChatId);
-  const activeChatMessages =
-    activeMessagesQuery.data?.data ??
-    (activeChatId ? (MOCK_CHAT_MESSAGES[activeChatId] ?? []) : []);
+  const activeConversationLive = activeConversation
+    ? {
+        ...activeConversation,
+        online: chatOnlineUserIds.length > 0 || activeConversation.online,
+        typing: chatTypingUsers.some((u) => u.user_id !== currentUserId),
+      }
+    : undefined;
+  const activeChatMessages = activeMessagesQuery.data?.data ?? [];
 
   const renderMainContent = () => {
-    if (overlay === "chat" && activeConversation) {
+    if (overlay === "chat" && activeConversationLive) {
       return (
         <ChatScreen
-          conversation={activeConversation}
+          conversation={activeConversationLive}
           messages={activeChatMessages}
           onBack={() => {
             setOverlay(null);
@@ -1049,6 +1067,8 @@ function HomeHubApp() {
           }}
           onSend={sendMessage}
           onSendImage={sendImageMessage}
+          onTypingStart={chatStartTyping}
+          onTypingStop={chatStopTyping}
         />
       );
     }
@@ -1200,7 +1220,14 @@ function HomeHubApp() {
               }}
               onMessageFlatmates={() => {
                 navigateTab("messages");
-                openChat("c2");
+                const flatmateChat = conversations.find((c) => c.category === "flatmate");
+                if (flatmateChat) {
+                  openChat(flatmateChat.id);
+                } else if (conversations[0]) {
+                  openChat(conversations[0].id);
+                } else {
+                  showToast("No conversations yet");
+                }
               }}
               refreshing={refreshing}
               onRefresh={handleRefresh}

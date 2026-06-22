@@ -15,6 +15,7 @@ export function usePropertiesData() {
     createProperty,
     updateProperty,
     deleteProperty,
+    uploadPropertyPhoto,
     myFlatProperty,
   } = useProperties();
 
@@ -32,6 +33,7 @@ export function usePropertiesData() {
     createProperty,
     updateProperty,
     deleteProperty,
+    uploadPropertyPhoto,
   };
 }
 

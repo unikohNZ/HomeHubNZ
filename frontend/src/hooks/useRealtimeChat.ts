@@ -130,12 +130,10 @@ export function useRealtimeChat({
     const offClose = socket.on("close", () => setIsConnected(false));
 
     const offNewMsg = socket.on("message.new", (e: WsMessageNew) => {
+      if (e.message.sender_id === currentUserId) return;
       const msg = mapWsMessageToChat(e.message, currentUserId);
       appendMessage(msg);
-      // Auto-mark as read if it's not from us
-      if (msg.sender_id !== currentUserId) {
-        socket.markRead(e.message.id);
-      }
+      socket.markRead(e.message.id);
     });
 
     const offRead = socket.on("message.read", (e: WsMessageRead) => {

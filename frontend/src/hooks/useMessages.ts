@@ -41,12 +41,9 @@ export function useSendMessage(currentUserId?: number) {
   return useMutation({
     mutationFn: ({ roomId, content }: { roomId: string; content: string }) =>
       messageService.sendText(roomId, content, currentUserId),
-    onSuccess: (result, { roomId }) => {
+    onSuccess: (_result, { roomId }) => {
       const key = queryKeys.messages.room(Number(roomId) || roomId);
-      queryClient.setQueryData<{ data: ChatMessage[]; source: string }>(key, (old) => ({
-        data: [...(old?.data ?? []), result.data],
-        source: result.source,
-      }));
+      queryClient.invalidateQueries({ queryKey: key });
       queryClient.invalidateQueries({ queryKey: queryKeys.messages.rooms });
     },
   });
@@ -62,12 +59,9 @@ export function useSendImageMessage(currentUserId?: number) {
       roomId: string;
       file: { uri: string; name: string; type: string };
     }) => messageService.sendImage(roomId, file, currentUserId),
-    onSuccess: (result, { roomId }) => {
+    onSuccess: (_result, { roomId }) => {
       const key = queryKeys.messages.room(Number(roomId) || roomId);
-      queryClient.setQueryData<{ data: ChatMessage[]; source: string }>(key, (old) => ({
-        data: [...(old?.data ?? []), result.data],
-        source: result.source,
-      }));
+      queryClient.invalidateQueries({ queryKey: key });
       queryClient.invalidateQueries({ queryKey: queryKeys.messages.rooms });
     },
   });
@@ -83,12 +77,9 @@ export function useSendDocumentMessage(currentUserId?: number) {
       roomId: string;
       file: { uri: string; name: string; type: string };
     }) => messageService.sendDocument(roomId, file, currentUserId),
-    onSuccess: (result, { roomId }) => {
+    onSuccess: (_result, { roomId }) => {
       const key = queryKeys.messages.room(Number(roomId) || roomId);
-      queryClient.setQueryData<{ data: ChatMessage[]; source: string }>(key, (old) => ({
-        data: [...(old?.data ?? []), result.data],
-        source: result.source,
-      }));
+      queryClient.invalidateQueries({ queryKey: key });
       queryClient.invalidateQueries({ queryKey: queryKeys.messages.rooms });
     },
   });

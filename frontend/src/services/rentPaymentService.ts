@@ -53,6 +53,9 @@ export const rentPaymentService = {
   async markPaid(paymentId: string, paymentDate: string): Promise<DataResult<TenantPayment>> {
     const numericId = paymentId.replace(/^tp-/, "");
     if (isMockMode() || Number.isNaN(parseInt(numericId, 10))) {
+      if (!isMockMode()) {
+        throw new Error("Invalid payment id");
+      }
       const existing = MOCK_TENANT_PAYMENTS.find((p) => p.id === paymentId);
       const updated: TenantPayment = {
         ...(existing ?? MOCK_TENANT_PAYMENTS[0]),

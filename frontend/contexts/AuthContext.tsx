@@ -45,6 +45,7 @@ function mapApiUser(data: {
   email: string;
   first_name: string;
   last_name: string;
+  phone?: string | null;
   avatar_url?: string | null;
   role: string;
 }): User {
@@ -54,6 +55,7 @@ function mapApiUser(data: {
     id: String(data.id),
     name: `${data.first_name} ${data.last_name}`.trim(),
     email: data.email,
+    phone: data.phone ?? undefined,
     role,
     avatar_color: role === "landlord" ? "#22c55e" : "#3b82f6",
     avatar_url: data.avatar_url ?? undefined,
